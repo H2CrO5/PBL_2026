@@ -1,20 +1,21 @@
 """Teacher-authored question seed schemas."""
 
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class QuestionSeedCreateRequest(BaseModel):
     course_id: int
     lecture_id: int
-    title: str
-    target_concept: str
-    seed_type: str = "base"
-    difficulty: str = "medium"
-    question_text: str
-    expected_answer: str
-    rubric: list[str]
+    title: str = Field(min_length=1)
+    target_concept: str = Field(min_length=1)
+    seed_type: Literal["base", "required", "rubric_seed"] = "base"
+    difficulty: Literal["supportive", "balanced", "challenging"] = "balanced"
+    question_text: str = Field(min_length=1)
+    expected_answer: str = Field(min_length=1)
+    rubric: list[str] = Field(min_length=1)
     notes: str | None = None
 
 
@@ -34,12 +35,20 @@ class QuestionSeedResponse(BaseModel):
     created_at: datetime
 
 
+class GenerationMaterialResponse(BaseModel):
+    id: int
+    title: str
+    material_type: str
+    ingestion_status: str
+
+
 class GenerationContextResponse(BaseModel):
     course_id: int
     lecture_id: int
     lecture_title: str
+    learning_objectives: list[str]
+    materials: list[GenerationMaterialResponse]
     material_titles: list[str]
     weak_concepts: list[str]
     question_seeds: list[QuestionSeedResponse]
     backend_instruction: str
-

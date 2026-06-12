@@ -10,11 +10,11 @@ from db.models import Session, Teacher
 
 
 def get_current_teacher(
-    authorization: str = Header(..., description="Bearer token"),
+    authorization: str | None = Header(None, description="Bearer token"),
     db: DBSession = Depends(get_db),
 ) -> Teacher:
     """Validate bearer token and return the current teacher."""
-    if not authorization.startswith("Bearer "):
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authorization header must start with 'Bearer '",
@@ -34,4 +34,3 @@ def get_current_teacher(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Teacher not found")
 
     return teacher
-

@@ -2,7 +2,7 @@
 
 Purpose: validate the planned Teacher Part workflow using the sample teacher materials in `teacher/materials/`.
 
-Scope: teacher-side tasks only. The Teacher Part manages materials, analytics, and teacher-authored question seeds. Final adaptive assignment generation belongs to the future shared backend or Student Part integration.
+Scope: teacher-side tasks only. The Teacher Part starts after lecture slides/materials are complete; it does not test slide generation or teaching-style design. It manages completed materials, analytics, and teacher-authored question seeds. Final adaptive assignment generation belongs to the future shared backend or Student Part integration.
 
 ## Test Data
 

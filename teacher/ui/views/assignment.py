@@ -39,7 +39,7 @@ def render():
     context = get(f"/questions/generation-context/{selected_lecture['id']}")
     if context:
         col1, col2, col3 = st.columns(3)
-        col1.metric("Materials", len(context["material_titles"]))
+        col1.metric("Materials", len(context["materials"]))
         col2.metric("Weak Concepts", len(context["weak_concepts"]))
         col3.metric("Lecture Seeds", len(context["question_seeds"]))
 
@@ -87,8 +87,11 @@ def render():
         left, right = st.columns(2)
         with left:
             st.markdown("**Materials**")
-            for title in context["material_titles"]:
-                st.markdown(f"- {title}")
+            for material in context["materials"]:
+                st.markdown(
+                    f"- #{material['id']} {material['title']} "
+                    f"({material['material_type']}, {material['ingestion_status']})"
+                )
         with right:
             st.markdown("**Current weak concepts**")
             for concept in context["weak_concepts"]:

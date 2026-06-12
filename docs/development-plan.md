@@ -15,6 +15,7 @@ Current development assumption:
 - Each group may temporarily use local data, mock APIs, local databases, or sample files while developing its own module.
 - After both parts are independently functional, the team will enter the integration phase and unify authentication, database schema, RAG, LLM calls, API contracts, and AWS resources.
 - This means the current Student Part can be considered aligned with the plan if it runs independently and covers the student learning workflow.
+- The current Teacher Part starts after instructors have already prepared lecture slides and teaching materials. It does not generate slides, redesign lecture style, or decide the lecture narrative. Its role is to structure completed materials for assignments, feedback, analytics, and RAG.
 
 ## Phase 1: Requirement Definition and System Design
 
@@ -38,6 +39,7 @@ Teacher Part tasks:
 
 - Design teacher dashboard, analytics metrics, material management, and individual student analysis.
 - Define teacher report structure.
+- Define the post-slide material processing workflow: completed slides/materials in, structured lecture profile and question seeds out.
 
 Deliverables:
 
@@ -166,16 +168,28 @@ Future shared API mapping:
 
 Objective: build analytics and monitoring tools for faculty.
 
+Scope boundary:
+
+- The Teacher Part supports the post-slide preparation stage.
+- Instructors provide completed lecture slides, notes, book sections, or other teaching materials.
+- The system does not generate slide decks or control teaching style.
+- The system extracts and helps verify structure from completed materials: learning objectives, key concepts, likely misconceptions, assessment scope, base questions, required questions, and rubric seeds.
+- The structured lecture profile becomes input for later shared-backend RAG, assignment generation, feedback, and analytics.
+
 Frontend tasks:
 
 - Teacher dashboard.
 - Material management page.
+- Lecture material structure review page.
 - Class analytics page.
 - Student analytics page.
 - Report view/export.
 
 Teacher AI tasks:
 
+- Completed-material parsing and concept extraction.
+- Learning objective and assessment-scope extraction.
+- Question seed candidate extraction for teacher review.
 - Class understanding analysis.
 - Incorrect-answer trend analysis.
 - Lecture improvement suggestions.
@@ -191,6 +205,8 @@ Teacher memory tasks:
 Deliverables:
 
 - Teacher UI.
+- Structured lecture profile from completed materials.
+- Teacher-reviewed question seeds.
 - Analytics dashboard.
 - Report generation system.
 

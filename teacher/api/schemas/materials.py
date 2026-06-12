@@ -1,8 +1,9 @@
 """Material schemas."""
 
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MaterialResponse(BaseModel):
@@ -20,9 +21,9 @@ class MaterialResponse(BaseModel):
 class MaterialCreateRequest(BaseModel):
     course_id: int
     lecture_id: int
-    title: str
-    material_type: str
-    content: str
+    title: str = Field(min_length=1)
+    material_type: Literal["slide", "book", "note"]
+    content: str = Field(min_length=1)
 
 
 class LectureResponse(BaseModel):
@@ -30,4 +31,3 @@ class LectureResponse(BaseModel):
     lecture_number: int
     title: str
     learning_objectives: list[str]
-

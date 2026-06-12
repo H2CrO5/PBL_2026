@@ -9,6 +9,7 @@ def render():
     st.title("Material Management")
     st.markdown("Review seeded materials or add a local text material for smoke testing.")
 
+    summary = get("/analytics/dashboard")
     lectures = get("/materials/lectures") or []
     materials = get("/materials") or []
 
@@ -31,8 +32,11 @@ def render():
                 )
                 submitted = st.form_submit_button("Add material", width="stretch")
             if submitted:
+                if not summary:
+                    st.error("Cannot identify the current course.")
+                    return
                 result = post("/materials", {
-                    "course_id": 1,
+                    "course_id": summary["course_id"],
                     "lecture_id": lecture_labels[selected],
                     "title": title,
                     "material_type": material_type,

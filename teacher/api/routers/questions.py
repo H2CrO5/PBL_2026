@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session as DBSession
 from api.dependencies import get_current_teacher
 from api.schemas.questions import (
     GenerationContextResponse,
+    GenerationMaterialResponse,
     QuestionSeedCreateRequest,
     QuestionSeedResponse,
 )
@@ -124,6 +125,16 @@ def get_generation_context(
         course_id=course.id,
         lecture_id=lecture.id,
         lecture_title=lecture.title,
+        learning_objectives=json.loads(lecture.learning_objectives),
+        materials=[
+            GenerationMaterialResponse(
+                id=material.id,
+                title=material.title,
+                material_type=material.material_type,
+                ingestion_status=material.ingestion_status,
+            )
+            for material in materials
+        ],
         material_titles=[m.title for m in materials],
         weak_concepts=[c.concept for c in concepts],
         question_seeds=[_seed_response(seed) for seed in seeds],

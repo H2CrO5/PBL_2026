@@ -11,6 +11,33 @@ The project is currently split into two parallel modules:
 
 During this stage, each part can run with its own local database and mock/demo data. After both modules are stable, the shared backend will replace local data stores and unify authentication, RAG, LLM calls, analytics, and assignment generation.
 
+## Product Scope Boundary
+
+The current project starts after instructors have already finished their lecture slides and teaching materials.
+
+Teacher Part does not:
+
+- Generate slide decks.
+- Redesign lecture style.
+- Decide the lecture narrative or teaching order.
+- Replace the instructor's course planning.
+
+Teacher Part does:
+
+- Read completed slides, notes, book sections, or other lecture materials.
+- Help structure those materials into concepts, objectives, likely misconceptions, and assessment scope.
+- Let teachers review or author base questions, required questions, and rubric seeds.
+- Pass structured material context to the future shared backend for RAG, assignment generation, feedback, and analytics.
+
+The intended workflow is:
+
+```text
+Instructor completes lecture slide/materials
+-> Teacher Part structures completed materials
+-> Teacher reviews concepts and question seeds
+-> Shared backend uses the verified structure for student-facing assignments and feedback
+```
+
 ## Teacher Part Responsibility
 
 Teacher Part does not generate the final personalized adaptive assignment.
@@ -19,6 +46,8 @@ Teacher Part owns:
 
 - Course material upload and review.
 - Lecture-level material organization.
+- Post-slide material structuring.
+- Learning objective and concept extraction from completed materials.
 - Teacher-authored base questions.
 - Teacher-authored required questions.
 - Teacher-authored rubric seeds.
@@ -43,7 +72,7 @@ Shared backend later owns:
 | --- | --- | --- |
 | Teacher login | Local SQLite seed data | Shared auth service |
 | Course and lecture metadata | Local SQLite seed data | Shared course database |
-| Slide/book materials | `teacher/materials/` seed files or local UI input | Teacher uploads through shared material API |
+| Completed slide/book materials | `teacher/materials/` seed files or local UI input | Teacher uploads through shared material API |
 | Student profiles | Mock local analytics data | Student Part submissions and learning history |
 | Weak concepts | Mock concept metrics | Shared analytics pipeline |
 | Base/required questions | Teacher Question Bank UI | Shared question seed service |
@@ -53,6 +82,7 @@ Shared backend later owns:
 | Output | Consumer |
 | --- | --- |
 | Material metadata and content | Shared RAG pipeline |
+| Structured lecture profile | Shared RAG and assignment generation services |
 | Base question seeds | Shared assignment generation service |
 | Required question seeds | Shared assignment generation service |
 | Rubric seeds | Shared grading and assignment generation service |
@@ -126,7 +156,7 @@ Future integration expectation:
 | --- | --- | --- |
 | `GET` | `/questions` | List teacher-authored question seeds |
 | `POST` | `/questions` | Create a base/required/rubric seed |
-| `GET` | `/questions/generation-context/{lecture_id}` | Preview backend generation context for a lecture |
+| `GET` | `/questions/generation-context/{lecture_id}` | Preview backend generation context for a lecture, including learning objectives, material ids/types/status, weak concepts, and question seeds |
 
 Create question seed request:
 
@@ -264,4 +294,3 @@ Teacher-side smoke test should validate:
 7. Teacher reviews individual student insight.
 
 Student-side smoke test can stay independent for now, but should later verify that shared backend can use Teacher Part materials and seeds to produce student-facing assignments.
-
