@@ -20,12 +20,13 @@ Scope: teacher-side tasks only. The Teacher Part starts after lecture slides/mat
 | 2 | Material review | material management page | both lecture groups appear with title, type, tags, and source file metadata |
 | 3 | Material detail review | material viewer and retrieval preview | teacher can open slide-style and reference-style files; headings and tags are visible |
 | 4 | Question seed review | base/required/rubric seed management | teacher can review seeded questions with difficulty, expected answer, and rubric |
-| 5 | Question seed authoring | teacher-authored required question input | teacher can add a question seed tied to the selected lecture material |
-| 6 | Class analytics review | class analytics dashboard | dashboard shows concept-level results, weak-point counts, common error patterns, and suggested class actions |
-| 7 | Individual student analysis | student analytics page | teacher can open a student report showing strengths, weak points, evidence, feedback, and next practice |
-| 8 | Next lecture suggestion | lecture recommendation feature | system recommends next lecture or remedial lecture using analytics triggers and explains the reason |
-| 9 | Lecture improvement suggestion | teacher report or recommendation panel | system suggests concrete lecture changes tied to weak-point patterns |
-| 10 | Generation context review | future shared-backend handoff | teacher can review material titles, weak concepts, and question seeds that will constrain backend assignment generation |
+| 5 | Candidate seed review | reduced teacher workload | teacher can review locally suggested candidate seeds before saving them |
+| 6 | Backend readiness review | future shared-backend handoff | teacher can see materials, objectives, required seeds, weak concepts, and rubric guidance status |
+| 7 | Question seed authoring | teacher-authored required question input | teacher can add a question seed tied to the selected lecture material with scope/variation/priority notes |
+| 8 | Class analytics review | class analytics dashboard | dashboard shows concept-level results, weak-point counts, common error patterns, and suggested class actions |
+| 9 | Evidence review | evidence-backed analytics | teacher can inspect confidence, affected students, related seeds, and typical errors for weak concepts |
+| 10 | Next lecture suggestion | lecture recommendation feature | system recommends a concrete next-lecture action plan using analytics triggers |
+| 11 | Individual student analysis | student analytics page | teacher can open a student report showing strengths, weak points, evidence, feedback, and next practice |
 
 ## Smoke Test Scenarios
 
@@ -74,8 +75,10 @@ Scope: teacher-side tasks only. The Teacher Part starts after lecture slides/mat
 - Teacher can distinguish slide-style material from reference-style material.
 - Teacher can filter or identify materials by lecture group and concept tag.
 - Question seeds are tied to selected material rather than unrelated content.
-- Generation context exposes material titles, weak concepts, and question seeds for the future shared backend.
+- Generation context exposes material ids/types/status, weak concepts, readiness checks, candidate seeds, and question seeds for the future shared backend.
 - Class analytics show concept-level performance and common error patterns.
+- Evidence view shows confidence, affected students, related seeds, and typical errors.
+- Dashboard provides a teacher action list.
 - Individual student analysis includes evidence and next practice.
 - Next lecture suggestion changes when mock analytics indicate readiness versus remediation need.
 - No Student Part files are required or modified for this smoke test.

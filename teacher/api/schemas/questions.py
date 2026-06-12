@@ -35,11 +35,32 @@ class QuestionSeedResponse(BaseModel):
     created_at: datetime
 
 
+class QuestionSeedCandidateResponse(BaseModel):
+    title: str
+    target_concept: str
+    seed_type: Literal["base", "required", "rubric_seed"]
+    difficulty: Literal["supportive", "balanced", "challenging"]
+    question_text: str
+    expected_answer: str
+    rubric: list[str]
+    notes: str
+    rationale: str
+    assessment_scope: str
+    variation_policy: str
+    teacher_priority: str
+
+
 class GenerationMaterialResponse(BaseModel):
     id: int
     title: str
     material_type: str
     ingestion_status: str
+
+
+class ReadinessCheckResponse(BaseModel):
+    name: str
+    status: Literal["ready", "warning", "blocked"]
+    detail: str
 
 
 class GenerationContextResponse(BaseModel):
@@ -51,4 +72,7 @@ class GenerationContextResponse(BaseModel):
     material_titles: list[str]
     weak_concepts: list[str]
     question_seeds: list[QuestionSeedResponse]
+    question_seed_candidates: list[QuestionSeedCandidateResponse]
+    readiness_checks: list[ReadinessCheckResponse]
+    ready_for_generation: bool
     backend_instruction: str

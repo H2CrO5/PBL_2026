@@ -21,6 +21,16 @@ def render():
     col3.metric("Completion", f"{summary['completion_rate']:.1f}%")
     col4.metric("Question Seeds", f"{summary['question_seed_count']} total / {summary['required_question_count']} required")
 
+    actions = summary.get("teacher_actions", [])
+    if actions:
+        st.subheader("Teacher Action List")
+        for action in actions:
+            with st.container(border=True):
+                st.caption(action["priority"].upper())
+                st.markdown(f"**{action['title']}**")
+                st.markdown(action["reason"])
+                st.markdown(f"Next step: {action['next_step']}")
+
     weak = summary["weak_concepts"]
     if weak:
         st.subheader("Weak Concepts")

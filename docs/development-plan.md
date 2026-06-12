@@ -179,9 +179,12 @@ Scope boundary:
 Frontend tasks:
 
 - Teacher dashboard.
+- Teacher action list for immediate teaching operations.
 - Material management page.
 - Lecture material structure review page.
+- Question Bank with candidate seed review and backend handoff readiness checks.
 - Class analytics page.
+- Evidence view for weak-concept conclusions.
 - Student analytics page.
 - Report view/export.
 
@@ -191,8 +194,9 @@ Teacher AI tasks:
 - Learning objective and assessment-scope extraction.
 - Question seed candidate extraction for teacher review.
 - Class understanding analysis.
+- Evidence-backed weak-concept analysis, including affected students, related question seeds, and confidence status.
 - Incorrect-answer trend analysis.
-- Lecture improvement suggestions.
+- Concrete lecture improvement action plan.
 - Next lecture focus recommendations.
 
 Teacher memory tasks:
@@ -207,6 +211,9 @@ Deliverables:
 - Teacher UI.
 - Structured lecture profile from completed materials.
 - Teacher-reviewed question seeds.
+- Shared-backend generation readiness checks.
+- Evidence-backed analytics view.
+- Teacher action list.
 - Analytics dashboard.
 - Report generation system.
 
@@ -307,6 +314,8 @@ For a course project, keep the demo sharp:
 - Teacher uploads or selects sample course materials.
 - Backend creates a small RAG knowledge base.
 - Teacher uploads or selects materials and authors base/required question seeds.
+- Teacher reviews candidate question seeds and readiness checks before shared-backend generation.
+- Teacher sees evidence-backed weak concepts and a concrete next-lecture action plan.
 - Shared backend generates adaptive assignments from materials, teacher seeds, student mastery, and weak-concept analytics.
 - Student submits answers and receives score, correct answer, and explanation.
 - Teacher sees weak concepts, common error patterns, and next lecture recommendations.

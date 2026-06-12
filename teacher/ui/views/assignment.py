@@ -23,6 +23,17 @@ def _show_seed(seed: dict):
             st.markdown(f"**Notes:** {seed['notes']}")
 
 
+def _control_notes(scope: str, variation_policy: str, priority: str, notes: str) -> str:
+    controls = [
+        f"Assessment scope: {scope}",
+        f"Variation policy: {variation_policy}",
+        f"Teacher priority: {priority}",
+    ]
+    if notes.strip():
+        controls.append(notes.strip())
+    return "\n".join(controls)
+
+
 def render():
     st.title("Question Bank")
 
@@ -43,6 +54,15 @@ def render():
         col2.metric("Weak Concepts", len(context["weak_concepts"]))
         col3.metric("Lecture Seeds", len(context["question_seeds"]))
 
+        readiness_label = "Ready for shared backend handoff" if context["ready_for_generation"] else "Needs teacher review"
+        st.subheader("Generation Readiness")
+        st.caption(readiness_label)
+        for check in context["readiness_checks"]:
+            with st.container(border=True):
+                st.markdown(f"**{check['name']}**")
+                st.caption(check["status"].upper())
+                st.markdown(check["detail"])
+
     with st.form("create_question_seed"):
         st.subheader("Add Question Seed")
         title = st.text_input("Title", value=f"{selected_lecture['title']} checkpoint")
@@ -57,6 +77,10 @@ def render():
             value="Correctly identifies inputs and outputs\nHandles the edge case\nExplains the reasoning clearly",
             height=100,
         )
+        control_col1, control_col2, control_col3 = st.columns(3)
+        assessment_scope = control_col1.selectbox("Assessment scope", ["practice_only", "formative_checkpoint", "exam_relevant"], index=1)
+        variation_policy = control_col2.selectbox("Variation policy", ["allow_variants", "teacher_review_required", "do_not_generate_variants"], index=1)
+        teacher_priority = control_col3.selectbox("Teacher priority", ["normal", "high", "critical"])
         notes = st.text_area("Internal notes", height=80)
         submitted = st.form_submit_button("Save question seed", width="stretch")
 
@@ -75,7 +99,7 @@ def render():
                 "question_text": question_text,
                 "expected_answer": expected_answer,
                 "rubric": rubric,
-                "notes": notes or None,
+                "notes": _control_notes(assessment_scope, variation_policy, teacher_priority, notes),
             })
             if result:
                 st.success("Question seed saved.")
@@ -96,6 +120,40 @@ def render():
             st.markdown("**Current weak concepts**")
             for concept in context["weak_concepts"]:
                 st.markdown(f"- {concept}")
+
+    if context and context["question_seed_candidates"]:
+        st.divider()
+        st.subheader("Candidate Seeds")
+        for index, candidate in enumerate(context["question_seed_candidates"]):
+            with st.container(border=True):
+                st.markdown(f"**{candidate['title']}**")
+                st.caption(
+                    f"{candidate['seed_type']} | {candidate['difficulty']} | "
+                    f"{candidate['assessment_scope']} | {candidate['variation_policy']}"
+                )
+                st.markdown(candidate["question_text"])
+                with st.expander("Candidate answer, rubric, and rationale"):
+                    st.markdown(f"**Expected answer:** {candidate['expected_answer']}")
+                    st.markdown("**Rubric:**")
+                    for item in candidate["rubric"]:
+                        st.markdown(f"- {item}")
+                    st.markdown(f"**Rationale:** {candidate['rationale']}")
+                if st.button("Save candidate", key=f"save_candidate_{selected_lecture['id']}_{index}", width="stretch"):
+                    saved = post("/questions", {
+                        "course_id": summary["course_id"],
+                        "lecture_id": selected_lecture["id"],
+                        "title": candidate["title"],
+                        "target_concept": candidate["target_concept"],
+                        "seed_type": candidate["seed_type"],
+                        "difficulty": candidate["difficulty"],
+                        "question_text": candidate["question_text"],
+                        "expected_answer": candidate["expected_answer"],
+                        "rubric": candidate["rubric"],
+                        "notes": candidate["notes"],
+                    })
+                    if saved:
+                        st.success("Candidate saved as a question seed.")
+                        st.rerun()
 
     st.divider()
     st.subheader("Question Seeds")

@@ -51,9 +51,13 @@ Teacher Part owns:
 - Teacher-authored base questions.
 - Teacher-authored required questions.
 - Teacher-authored rubric seeds.
+- Local candidate question seed suggestions for teacher review.
+- Shared-backend generation readiness checks.
 - Class weak-point analysis.
+- Evidence view for weak concepts.
+- Teacher action list.
 - Individual student insight display.
-- Next lecture improvement recommendations.
+- Concrete next lecture improvement action plan.
 - Generation context preview for future backend integration.
 
 Shared backend later owns:
@@ -76,6 +80,7 @@ Shared backend later owns:
 | Student profiles | Mock local analytics data | Student Part submissions and learning history |
 | Weak concepts | Mock concept metrics | Shared analytics pipeline |
 | Base/required questions | Teacher Question Bank UI | Shared question seed service |
+| Teacher control notes | Question Bank scope / variation / priority controls | Shared assignment-generation constraints |
 
 ### Outputs
 
@@ -86,7 +91,10 @@ Shared backend later owns:
 | Base question seeds | Shared assignment generation service |
 | Required question seeds | Shared assignment generation service |
 | Rubric seeds | Shared grading and assignment generation service |
+| Generation readiness checks | Teacher approval workflow and shared backend handoff |
 | Weak concepts and misconceptions | Student personalization and teacher dashboard |
+| Evidence view | Teacher analytics and intervention planning |
+| Teacher action list | Teacher dashboard |
 | Lecture improvement recommendation | Teacher dashboard |
 | Individual student insight | Teacher dashboard and advising workflow |
 
@@ -156,7 +164,7 @@ Future integration expectation:
 | --- | --- | --- |
 | `GET` | `/questions` | List teacher-authored question seeds |
 | `POST` | `/questions` | Create a base/required/rubric seed |
-| `GET` | `/questions/generation-context/{lecture_id}` | Preview backend generation context for a lecture, including learning objectives, material ids/types/status, weak concepts, and question seeds |
+| `GET` | `/questions/generation-context/{lecture_id}` | Preview backend generation context for a lecture, including learning objectives, material ids/types/status, weak concepts, question seeds, candidate seeds, and readiness checks |
 
 Create question seed request:
 
@@ -185,6 +193,14 @@ Create question seed request:
 - `required`: must be included or represented in generated assignments.
 - `rubric_seed`: grading/rubric guidance for generated variants.
 
+Teacher control notes are stored in the current local prototype as structured text in `notes`:
+
+- `Assessment scope`: `practice_only`, `formative_checkpoint`, or `exam_relevant`.
+- `Variation policy`: `allow_variants`, `teacher_review_required`, or `do_not_generate_variants`.
+- `Teacher priority`: `normal`, `high`, or `critical`.
+
+These should become first-class shared-backend fields during integration.
+
 Future integration expectation:
 
 - Shared backend should combine uploaded materials, question seeds, weak concepts, and student memory.
@@ -195,8 +211,9 @@ Future integration expectation:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/analytics/dashboard` | Class overview, weak concepts, question seed count |
-| `POST` | `/analytics/lecture-plan` | Generate next lecture improvement recommendation |
+| `GET` | `/analytics/dashboard` | Class overview, weak concepts, question seed count, teacher action list |
+| `GET` | `/analytics/evidence` | Evidence view for weak concepts, affected students, related seeds, and confidence status |
+| `POST` | `/analytics/lecture-plan` | Generate concrete next lecture action plan |
 
 Future integration expectation:
 
@@ -288,9 +305,10 @@ Teacher-side smoke test should validate:
 1. Teacher logs in.
 2. Teacher reviews two lecture groups and four material files.
 3. Teacher reviews existing base/required/rubric question seeds.
-4. Teacher adds one new question seed.
-5. Teacher confirms generation context contains material titles, weak concepts, and question seeds.
-6. Teacher reviews class analytics and lecture recommendation.
-7. Teacher reviews individual student insight.
+4. Teacher reviews candidate question seeds and backend readiness checks.
+5. Teacher adds one new question seed with scope, variation, and priority control notes.
+6. Teacher confirms generation context contains material ids/types/status, weak concepts, and question seeds.
+7. Teacher reviews class analytics, evidence view, teacher action list, and lecture recommendation.
+8. Teacher reviews individual student insight.
 
 Student-side smoke test can stay independent for now, but should later verify that shared backend can use Teacher Part materials and seeds to produce student-facing assignments.

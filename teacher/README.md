@@ -14,11 +14,15 @@ For Student Part synchronization, see `STUDENT_SYNC_README.md`.
 - Material management.
 - Post-slide material structuring.
 - Class analytics dashboard.
+- Teacher action list.
+- Evidence view for weak concepts.
 - Teacher-authored base and required question seeds.
+- Candidate question seed review.
+- Shared-backend generation readiness checks.
 - Shared-backend generation context preview.
 - Weak-point analysis.
 - Individual student analysis.
-- Next lecture improvement suggestions.
+- Concrete next lecture improvement action plan.
 
 ## Stack
 
@@ -61,7 +65,8 @@ Services:
 2. Open the dashboard and confirm class metrics and weak concepts.
 3. Open materials and confirm two lecture groups have slide/book materials.
 4. Open Question Bank and review seeded base/required questions.
-5. Add one teacher-authored question seed with an expected answer and rubric.
-6. Confirm generation context includes material titles, weak concepts, and question seeds.
-7. Open analytics and generate next lecture recommendations.
-8. Open student analysis and confirm weak topics and recommended actions.
+5. Review generation readiness checks and candidate question seeds.
+6. Add one teacher-authored question seed with an expected answer, rubric, and control notes.
+7. Confirm generation context includes material ids/types/status, weak concepts, and question seeds.
+8. Open analytics, review evidence, and generate next lecture recommendations.
+9. Open student analysis and confirm weak topics and recommended actions.
