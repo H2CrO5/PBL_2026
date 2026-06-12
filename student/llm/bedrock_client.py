@@ -70,7 +70,7 @@ def invoke(
     messages = [{"role": "user", "content": prompt}]
 
     body = {
-        "anthropic_version": "bedrock-2023-10-25",
+        "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": max_tokens,
         "temperature": temperature,
         "messages": messages,
