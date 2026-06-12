@@ -4,6 +4,8 @@ Teacher Part prototype for the Adaptive Assignment Generation System.
 
 This module follows `docs/development-plan.md`: it runs independently during module development, then can be integrated later with the shared backend, shared database, shared RAG pipeline, and shared AWS resources.
 
+For Student Part synchronization, see `STUDENT_SYNC_README.md`.
+
 ## Features
 
 - Teacher login.
