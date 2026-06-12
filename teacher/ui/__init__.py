@@ -1,0 +1,2 @@
+"""Teacher Streamlit UI package."""
+

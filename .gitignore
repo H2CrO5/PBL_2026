@@ -1,5 +1,7 @@
 # Virtual environment
 .venv/
+.venv*/
+.streamlit/
 
 # Python
 __pycache__/
@@ -22,3 +24,6 @@ build/
 student/data/
 student/data/*.db
 student/data/faiss_index/
+
+# Teacher system data
+teacher/data/

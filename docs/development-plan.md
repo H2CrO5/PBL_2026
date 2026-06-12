@@ -85,7 +85,7 @@ Infrastructure tasks:
 Ownership:
 
 - Student Part group owns student-facing APIs first: current assignment, answer submission, grading result, learning history, and TA Bot chat.
-- Teacher Part group owns teacher-facing APIs first: material upload, assignment generation request, class analytics, individual student analytics, and lecture recommendation.
+- Teacher Part group owns teacher-facing APIs first: material upload, teacher-authored base/required question seeds, generation context preview, class analytics, individual student analytics, and lecture recommendation.
 - Both groups review shared schema changes before implementation.
 
 Temporary independence rule:
@@ -209,14 +209,15 @@ Integration tasks:
 Data synchronization:
 
 - Student answers update analytics.
-- Analytics informs future assignment generation.
+- Analytics informs future adaptive assignment generation.
 - Teacher materials update the RAG knowledge base.
+- Teacher-authored base/required question seeds become constraints and anchors for generated assignments.
 - TA Bot uses the same course materials and student context.
 
 Integration unification:
 
 - Authentication changes from student-only login to role-based login for student, teacher, and TA.
-- Student Part assignments and Teacher Part generated assignments use one shared assignment schema.
+- Student Part assignment workflows and teacher-authored question seeds are mapped into one shared assignment-generation contract.
 - Student submissions become the source data for teacher analytics.
 - Student weak/strong topics evolve into shared concept-level student memory.
 - Teacher material upload becomes the source of the shared RAG knowledge base.
@@ -289,7 +290,8 @@ For a course project, keep the demo sharp:
 
 - Teacher uploads or selects sample course materials.
 - Backend creates a small RAG knowledge base.
-- Teacher generates adaptive assignments from student mastery.
+- Teacher uploads or selects materials and authors base/required question seeds.
+- Shared backend generates adaptive assignments from materials, teacher seeds, student mastery, and weak-concept analytics.
 - Student submits answers and receives score, correct answer, and explanation.
 - Teacher sees weak concepts, common error patterns, and next lecture recommendations.
 
