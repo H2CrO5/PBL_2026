@@ -33,6 +33,14 @@ python -m eval.run --target grading --jitter 0.4    # simulate an inconsistent g
 python -m eval.run --target grading --live          # real Bedrock (needs AWS creds)
 ```
 
+Teacher-analytics feed (step 2) — aggregate synthetic grading into a feed the
+teacher module imports instead of hand-seeded numbers:
+
+```bash
+python -m eval.run --target teacher-feed            # writes eval/reports/teacher_feed.json
+cd teacher && python -m db.seed && python -m db.seed_from_eval
+```
+
 Run from the repository root so `python -m eval.run` resolves the package.
 
 ## Modes
@@ -73,6 +81,7 @@ eval/
 
 ## Not in the MVP (next steps)
 
-Generation / TA-bot / analytics judges, DB-backed `eval_runs`/`eval_cases`
-tables, CI wiring, and feeding synthetic submissions into teacher analytics.
+Generation / TA-bot / analytics-faithfulness judges, DB-backed
+`eval_runs`/`eval_cases` tables, and CI wiring. (Feeding synthetic submissions
+into teacher analytics is done — see the teacher-feed target above.)
 See `docs/evaluation-system-design.md` section 6.

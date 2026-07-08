@@ -63,10 +63,10 @@ The original plan places LLM evaluation in Phase 6 (the end). We **promote it to
 
 ### Immediate next actions
 
+- [x] Eval: scaffold `eval/` with the shared `bedrock_client`, 3–4 student personas, and a grading-consistency judge with one threshold gate. *(done: `eval/`, mock + live providers.)*
+- [x] Eval → Teacher: route synthetic submissions into teacher analytics inputs. *(done: `eval.run --target teacher-feed` + `teacher/db/seed_from_eval.py`; derives `ConceptMetric.wrong_rate` and synthetic `StudentProfile` rows.)*
 - [ ] Teacher: replace rule-based `analytics.py` (evidence, teacher actions, lecture-plan) with `teacher/services/*` LLM calls.
-- [ ] Eval: scaffold `eval/` with the shared `bedrock_client`, 3–4 student personas, and a grading-consistency judge with one threshold gate.
-- [ ] Eval → Teacher: route synthetic submissions into teacher analytics inputs.
-- [ ] Shared: agree the concept taxonomy (C5) and a single difficulty enum (C7) so student and teacher vocabularies unify.
+- [ ] Shared: agree the concept taxonomy (C5, now aligned in the eval feed) and a single difficulty enum (C7) so student and teacher vocabularies unify.
 - [ ] Docs: author `aws-collaboration.md` and an architecture diagram (Phase 1 leftovers).
 
 ## 5. Definition of "integration-ready"

@@ -18,6 +18,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .feeds.teacher_analytics import build_feed
 from .gates.thresholds import evaluate_gate
 from .judges.grading import grade_answer
 from .llm import MockProvider, load_bedrock_provider
@@ -97,9 +98,39 @@ def _print_summary(target, provider, repeats, metrics, groups, gate_passed, gate
     print(f"\nRESULT: {'PASS' if gate_passed else 'FAIL'}")
 
 
+def _run_teacher_feed(provider, cases, out_dir: Path) -> int:
+    """Build the teacher-analytics feed artifact and write it to a stable path."""
+    feed = build_feed(provider, cases)
+
+    print(f"\n=== teacher-feed | provider={provider.name} ===")
+    print("Concept metrics (wrong_rate, synthetic-derived):")
+    for cm in feed["concept_metrics"]:
+        print(f"  {cm['concept']:<26} wrong_rate={cm['wrong_rate']:>5}  (n={cm['attempts']})")
+    print("\nSynthetic students:")
+    for s in feed["students"]:
+        print(
+            f"  {s['student_code']:<16} avg={s['average_score']:>5}  "
+            f"weak={s['weak_topics']}  strong={s['strong_topics']}"
+        )
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    report = {
+        "source": "eval-synthetic",
+        "provider": provider.name,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "concept_metrics": feed["concept_metrics"],
+        "students": feed["students"],
+    }
+    feed_path = out_dir / "teacher_feed.json"
+    with open(feed_path, "w", encoding="utf-8") as handle:
+        json.dump(report, handle, ensure_ascii=False, indent=2)
+    print(f"\nFeed: {feed_path}")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="LLM subsystem evaluation harness")
-    parser.add_argument("--target", default="grading", choices=["grading"])
+    parser.add_argument("--target", default="grading", choices=["grading", "teacher-feed"])
     parser.add_argument("--live", action="store_true", help="use real Bedrock (needs AWS creds)")
     parser.add_argument("--repeats", type=int, default=3, help="grading repeats per answer")
     parser.add_argument(
@@ -114,6 +145,9 @@ def main(argv=None) -> int:
 
     provider = load_bedrock_provider() if args.live else MockProvider(jitter=args.jitter)
     cases = _load_cases(Path(args.cases))
+
+    if args.target == "teacher-feed":
+        return _run_teacher_feed(provider, cases, Path(args.out))
 
     metrics, groups = run_grading(provider, cases, args.repeats)
     gate_passed, gate_results = evaluate_gate(args.target, metrics)

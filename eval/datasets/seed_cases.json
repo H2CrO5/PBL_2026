@@ -1,30 +1,65 @@
 [
   {
-    "id": "algo-mc-01",
-    "topic": "Algorithmic thinking",
-    "question_type": "multiple_choice",
-    "question_text": "What is the time complexity of binary search on a sorted array of n elements?",
-    "correct_answer": "O(log n)"
-  },
-  {
-    "id": "ds-sa-01",
-    "topic": "Data structures",
-    "question_type": "short_answer",
-    "question_text": "Explain when a stack (LIFO) is more appropriate than a queue (FIFO), and give one concrete example.",
-    "correct_answer": "Use a stack when the most recently added item must be handled first (e.g. undo history or call stack); use a queue when items are handled in arrival order."
-  },
-  {
-    "id": "py-code-01",
-    "topic": "Python basics",
+    "id": "edge-code-01",
+    "concept": "Edge-case handling",
     "question_type": "code",
     "question_text": "Write is_full(capacity, registered) returning 'full' when registered equals capacity, 'available' when below, and 'overbooked' when above.",
     "correct_answer": "def is_full(capacity, registered):\n    if registered == capacity:\n        return 'full'\n    return 'available' if registered < capacity else 'overbooked'"
   },
   {
-    "id": "algo-sa-02",
-    "topic": "Algorithmic thinking",
+    "id": "edge-sa-01",
+    "concept": "Edge-case handling",
+    "question_type": "short_answer",
+    "question_text": "What should average([]) do, and why must an empty list be handled explicitly?",
+    "correct_answer": "It must define a rule for empty input (return 0 or raise) because dividing the sum by a length of zero is undefined."
+  },
+  {
+    "id": "decomp-sa-01",
+    "concept": "Problem decomposition",
+    "question_type": "short_answer",
+    "question_text": "Decompose a quiz-average problem into inputs, processing steps, output, and one edge case.",
+    "correct_answer": "Inputs are quiz scores; processing sums the scores and divides by the count; output is the average; an edge case is an empty score list."
+  },
+  {
+    "id": "decomp-sa-02",
+    "concept": "Problem decomposition",
+    "question_type": "short_answer",
+    "question_text": "Before coding a 'find the maximum value in a list' task, list the subproblems you would define first.",
+    "correct_answer": "Define inputs (the list), the empty-list rule, an initial candidate, the comparison step over each element, and the output (the largest value)."
+  },
+  {
+    "id": "ds-sel-01",
+    "concept": "Data-structure selection",
+    "question_type": "short_answer",
+    "question_text": "For student lookup by ID, assignment processing in arrival order, and undoing the most recent edit, choose data structures and justify each.",
+    "correct_answer": "A dictionary for ID lookup, a queue for arrival-order processing, and a stack for undo."
+  },
+  {
+    "id": "ds-sel-02",
+    "concept": "Data-structure selection",
+    "question_type": "short_answer",
+    "question_text": "When is a stack (LIFO) more appropriate than a queue (FIFO)? Give one concrete example.",
+    "correct_answer": "Use a stack when the most recently added item must be handled first (e.g. undo history or a call stack); a queue when items are handled in arrival order."
+  },
+  {
+    "id": "complexity-mc-01",
+    "concept": "Complexity intuition",
+    "question_type": "multiple_choice",
+    "question_text": "What is the time complexity of binary search on a sorted array of n elements?",
+    "correct_answer": "O(log n)"
+  },
+  {
+    "id": "complexity-sa-01",
+    "concept": "Complexity intuition",
     "question_type": "short_answer",
     "question_text": "Why does linear search cost O(n) in the worst case? Describe the worst-case input.",
     "correct_answer": "In the worst case the target is absent or last, so all n elements are compared, giving O(n)."
+  },
+  {
+    "id": "complexity-sa-02",
+    "concept": "Complexity intuition",
+    "question_type": "short_answer",
+    "question_text": "Why can checking membership in a set be preferable to repeatedly scanning a list when validating submitted student IDs?",
+    "correct_answer": "A set supports near-constant membership checks, while repeated list scans grow with the list size for each check."
   }
 ]
