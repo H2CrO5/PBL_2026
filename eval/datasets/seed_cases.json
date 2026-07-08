@@ -1,0 +1,30 @@
+[
+  {
+    "id": "algo-mc-01",
+    "topic": "Algorithmic thinking",
+    "question_type": "multiple_choice",
+    "question_text": "What is the time complexity of binary search on a sorted array of n elements?",
+    "correct_answer": "O(log n)"
+  },
+  {
+    "id": "ds-sa-01",
+    "topic": "Data structures",
+    "question_type": "short_answer",
+    "question_text": "Explain when a stack (LIFO) is more appropriate than a queue (FIFO), and give one concrete example.",
+    "correct_answer": "Use a stack when the most recently added item must be handled first (e.g. undo history or call stack); use a queue when items are handled in arrival order."
+  },
+  {
+    "id": "py-code-01",
+    "topic": "Python basics",
+    "question_type": "code",
+    "question_text": "Write is_full(capacity, registered) returning 'full' when registered equals capacity, 'available' when below, and 'overbooked' when above.",
+    "correct_answer": "def is_full(capacity, registered):\n    if registered == capacity:\n        return 'full'\n    return 'available' if registered < capacity else 'overbooked'"
+  },
+  {
+    "id": "algo-sa-02",
+    "topic": "Algorithmic thinking",
+    "question_type": "short_answer",
+    "question_text": "Why does linear search cost O(n) in the worst case? Describe the worst-case input.",
+    "correct_answer": "In the worst case the target is absent or last, so all n elements are compared, giving O(n)."
+  }
+]

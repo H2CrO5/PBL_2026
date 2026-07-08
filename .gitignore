@@ -27,3 +27,6 @@ student/data/faiss_index/
 
 # Teacher system data
 teacher/data/
+
+# Evaluation harness run reports
+eval/reports/*.json
