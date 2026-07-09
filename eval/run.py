@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .feeds.teacher_analytics import build_feed
 from .gates.thresholds import evaluate_gate
+from .judges.analytics import generate_narration, judge_narration
 from .judges.generation import generate_question, judge_question
 from .judges.grading import grade_answer
 from .judges.ta_bot import generate_answer, judge_answer
@@ -32,6 +33,7 @@ DATASETS_DIR = EVAL_DIR / "datasets"
 DEFAULT_CASES = DATASETS_DIR / "seed_cases.json"
 GENERATION_CASES = DATASETS_DIR / "generation_cases.json"
 TA_CASES = DATASETS_DIR / "ta_cases.json"
+ANALYTICS_FACTS = DATASETS_DIR / "analytics_facts.json"
 REPORTS_DIR = EVAL_DIR / "reports"
 
 # Per-target default dataset when --cases is not given.
@@ -40,6 +42,7 @@ DEFAULT_DATASET = {
     "teacher-feed": DEFAULT_CASES,
     "generation": GENERATION_CASES,
     "ta-bot": TA_CASES,
+    "analytics": ANALYTICS_FACTS,
 }
 
 
@@ -145,6 +148,28 @@ def run_ta_bot(provider, cases):
     return metrics, groups
 
 
+def run_analytics(provider, facts):
+    """Independently narrate the numeric facts, then judge faithfulness.
+
+    `facts` is a dict {concept_metrics, students} (teacher_feed.json schema).
+    """
+    narration = generate_narration(provider, facts)
+    result = judge_narration(provider, facts, narration)
+    score = round(float(result.get("analytics_faithfulness", 0.0)), 3)
+
+    groups = [
+        {
+            "concepts": len(facts.get("concept_metrics", [])),
+            "students": len(facts.get("students", [])),
+            "analytics_faithfulness": score,
+            "narration_summary": str(narration.get("summary", ""))[:80],
+            "narration_weak_concepts": narration.get("weak_concepts", []),
+        }
+    ]
+    metrics = {"analytics_faithfulness": score}
+    return metrics, groups
+
+
 def _print_gate_summary(target, provider, metrics, groups, gate_passed, gate_results):
     """Generic metrics + gate printer for non-grading targets."""
     print(f"\n=== eval: {target} | provider={provider.name} | cases={len(groups)} ===")
@@ -220,7 +245,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--target",
         default="grading",
-        choices=["grading", "teacher-feed", "generation", "ta-bot"],
+        choices=["grading", "teacher-feed", "generation", "ta-bot", "analytics"],
     )
     parser.add_argument("--live", action="store_true", help="use real Bedrock (needs AWS creds)")
     parser.add_argument("--repeats", type=int, default=3, help="grading repeats per answer")
@@ -249,8 +274,10 @@ def main(argv=None) -> int:
         metrics, groups = run_grading(provider, cases, args.repeats)
     elif args.target == "generation":
         metrics, groups = run_generation(provider, cases)
-    else:  # ta-bot
+    elif args.target == "ta-bot":
         metrics, groups = run_ta_bot(provider, cases)
+    else:  # analytics (cases is a {concept_metrics, students} dict, not a list)
+        metrics, groups = run_analytics(provider, cases)
 
     gate_passed, gate_results = evaluate_gate(args.target, metrics)
     if args.target == "grading":

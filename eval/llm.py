@@ -96,6 +96,19 @@ class MockProvider:
                 "rationale": "Mock offline judge.",
             }
 
+        if kind == "analytics_narrate":
+            return {
+                "summary": f"[mock analytics summary :: {seed}]",
+                "weak_concepts": ["Edge-case handling", "Complexity intuition"],
+                "recommended_focus": "[mock recommended focus]",
+            }
+
+        if kind == "analytics_judge":
+            return {
+                "analytics_faithfulness": self._quality_score(f"{seed}:faithful"),
+                "rationale": "Mock offline judge.",
+            }
+
         return {}
 
     def _quality_score(self, seed: str) -> float:

@@ -1,0 +1,35 @@
+{
+  "source": "eval-fixture",
+  "concept_metrics": [
+    { "concept": "Edge-case handling", "attempts": 8, "wrong_rate": 75.0 },
+    { "concept": "Complexity intuition", "attempts": 12, "wrong_rate": 66.7 },
+    { "concept": "Problem decomposition", "attempts": 8, "wrong_rate": 62.5 },
+    { "concept": "Data-structure selection", "attempts": 8, "wrong_rate": 62.5 }
+  ],
+  "students": [
+    {
+      "student_code": "syn-strong",
+      "name": "Synthetic Strong student",
+      "average_score": 71.3,
+      "completion_rate": 100.0,
+      "weak_topics": [],
+      "strong_topics": ["Complexity intuition"]
+    },
+    {
+      "student_code": "syn-average",
+      "name": "Synthetic Average student",
+      "average_score": 59.2,
+      "completion_rate": 100.0,
+      "weak_topics": ["Complexity intuition", "Data-structure selection", "Edge-case handling", "Problem decomposition"],
+      "strong_topics": []
+    },
+    {
+      "student_code": "syn-struggling",
+      "name": "Synthetic Struggling student",
+      "average_score": 44.2,
+      "completion_rate": 100.0,
+      "weak_topics": ["Complexity intuition", "Data-structure selection", "Edge-case handling", "Problem decomposition"],
+      "strong_topics": []
+    }
+  ]
+}

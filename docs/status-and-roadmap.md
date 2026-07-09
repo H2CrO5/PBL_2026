@@ -17,7 +17,7 @@ Related documents:
 | Part | Plan phase | Real status |
 |---|---|---|
 | **Student** | Phase 3 (Student Part development) | **Working prototype with live LLM.** Login, adaptive assignments, LLM auto-grading, feedback, dashboard, history, and RAG TA bot all run against AWS Bedrock. |
-| **Teacher** | Phase 4 (in progress) | **Rich workflow UI + analytics — but still no LLM.** Now includes evidence view, teacher action list, seed candidates, backend readiness checks, and expanded lecture plans. All of it is **rule-based Python over deterministic seed data** (confirmed: no Bedrock anywhere in `teacher/`). Scope is deliberately **post-slide**: structure completed materials, do not generate slides. |
+| **Teacher** | Phase 4 (in progress) | **Rich workflow UI + analytics, now with optional LLM narration.** Evidence view, teacher action list, seed candidates, backend readiness checks, and expanded lecture plans. Numeric facts stay rule-based; the qualitative narration (typical errors, recommended actions, lecture-plan prose) is LLM-generated when `TEACHER_USE_LLM=1`, reusing a teacher-side Bedrock client, with automatic fallback to the rule-based text. Scope is deliberately **post-slide**: structure completed materials, do not generate slides. |
 | **Shared backend** | Phase 2 (partial) | Not started as shared infrastructure. Two independent SQLite DBs and two FastAPI services. Assignment-generation contract exists only as a draft (`STUDENT_SYNC_README.md`). |
 | **Docs** | Phase 1 | Plan + sync README exist; `data-model.md` / `api-spec.md` now added. Architecture diagram and AWS collaboration doc still missing. |
 | **Evaluation** | Phase 6 in plan | **Not started.** Re-scoped here to run in parallel with Phases 2–3 (see §4). |
@@ -65,7 +65,9 @@ The original plan places LLM evaluation in Phase 6 (the end). We **promote it to
 
 - [x] Eval: scaffold `eval/` with the shared `bedrock_client`, 3–4 student personas, and a grading-consistency judge with one threshold gate. *(done: `eval/`, mock + live providers.)*
 - [x] Eval → Teacher: route synthetic submissions into teacher analytics inputs. *(done: `eval.run --target teacher-feed` + `teacher/db/seed_from_eval.py`; derives `ConceptMetric.wrong_rate` and synthetic `StudentProfile` rows.)*
-- [ ] Teacher: replace rule-based `analytics.py` (evidence, teacher actions, lecture-plan) with `teacher/services/*` LLM calls.
+- [x] Teacher: LLM narration for `analytics.py` (evidence, teacher actions, lecture-plan) via `teacher/services/analytics_llm.py` behind `TEACHER_USE_LLM`, with rule-based fallback. *(done)*
+- [x] Eval: generation + TA-bot judges and gates, plus CI in `.github/workflows/eval-gates.yml`. *(done: step 3)*
+- [x] Eval: analytics-faithfulness judge/gate over the teacher numeric facts. *(done: step 4)*
 - [ ] Shared: agree the concept taxonomy (C5, now aligned in the eval feed) and a single difficulty enum (C7) so student and teacher vocabularies unify.
 - [ ] Docs: author `aws-collaboration.md` and an architecture diagram (Phase 1 leftovers).
 

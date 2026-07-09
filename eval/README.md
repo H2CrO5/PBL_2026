@@ -50,6 +50,15 @@ python -m eval.run --target ta-bot                  # citation grounding / hallu
 python -m eval.run --target generation --jitter 0.5 # mock: demonstrate a failing gate
 ```
 
+Analytics-faithfulness gate (step 4) — independently narrate the teacher's
+numeric facts and judge whether the narration stays faithful to them (decoupled
+from the teacher module code):
+
+```bash
+python -m eval.run --target analytics                                   # uses datasets/analytics_facts.json
+python -m eval.run --target analytics --live --cases eval/reports/teacher_feed.json  # judge the real synthetic feed
+```
+
 Run from the repository root so `python -m eval.run` resolves the package.
 
 ## Modes
@@ -70,6 +79,7 @@ Run from the repository root so `python -m eval.run` resolves the package.
 | generation | `difficulty_match` | judge: question matches the requested difficulty | `>= 0.80` |
 | ta-bot | `citation_grounding_rate` | judge: fraction of answer claims supported by the sources | `>= 0.85` |
 | ta-bot | `hallucination_rate` | judge: fraction of answer claims unsupported/contradicted | `<= 0.05` |
+| analytics | `analytics_faithfulness` | judge: narration's claims follow from the numeric facts (no invented figures) | `>= 0.80` |
 
 Thresholds are starting values in `gates/thresholds.py`; calibrate from a
 baseline run, then ratchet up.
@@ -90,21 +100,23 @@ eval/
   judges/grading.py     grading consistency judge
   judges/generation.py  assignment-generation judge
   judges/ta_bot.py      TA-bot grounding / hallucination judge
+  judges/analytics.py   analytics-faithfulness judge
   gates/thresholds.py   metric thresholds + pass/fail
-  datasets/*.json       fixture assignments / generation / TA cases
+  datasets/*.json       fixtures: assignments / generation / TA / analytics facts
   reports/              run reports (git-ignored)
 ```
 
 ## CI
 
-`.github/workflows/eval-gates.yml` runs the grading, generation, and TA-bot
-gates in mock mode on pull requests that touch `student/llm/**`,
+`.github/workflows/eval-gates.yml` runs the grading, generation, TA-bot, and
+analytics gates in mock mode on pull requests that touch `student/llm/**`,
 `student/api/routers/assignments.py`, `student/api/routers/chat.py`,
 `teacher/services/**`, or `eval/**`. Mock mode is standard-library only, so it
 needs no AWS credentials and makes no paid calls; a failing gate blocks merge.
 
 ## Not in the MVP (next steps)
 
-Analytics-faithfulness judge (step 4) and DB-backed `eval_runs`/`eval_cases`
-tables. Steps 1–3 (grading, teacher-feed, generation, TA-bot judges + CI) are
-done. See `docs/evaluation-system-design.md` section 6.
+DB-backed `eval_runs`/`eval_cases` tables and threshold ratcheting from a larger
+baseline. Steps 1–4 (grading, teacher-feed, generation, TA-bot, and
+analytics-faithfulness judges + CI) are done. See
+`docs/evaluation-system-design.md` section 6.

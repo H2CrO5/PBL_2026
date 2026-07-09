@@ -30,3 +30,5 @@ jobs:
         run: python -m eval.run --target generation
       - name: TA-bot gate (mock)
         run: python -m eval.run --target ta-bot
+      - name: Analytics-faithfulness gate (mock)
+        run: python -m eval.run --target analytics

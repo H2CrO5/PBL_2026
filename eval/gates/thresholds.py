@@ -21,6 +21,12 @@ GATES = {
         "citation_grounding_rate": (">=", 0.85),
         "hallucination_rate": ("<=", 0.05),
     },
+    # Calibrated from live baseline runs: faithful narrations score ~0.8-0.9,
+    # while a narration that contradicts/invents figures scores <=0.5. 0.80
+    # cleanly separates the two.
+    "analytics": {
+        "analytics_faithfulness": (">=", 0.80),
+    },
 }
 
 _OPS = {

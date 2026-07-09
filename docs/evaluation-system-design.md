@@ -110,8 +110,8 @@ Reuse: import `bedrock_client` and `prompts` from the student module (or a share
 - **Step 1 (MVP) — done:** personas (3–4) + grading judge + one `grading_consistency` gate (`eval/`, `python -m eval.run --target grading`). Mock provider runs offline; live provider reuses the student Bedrock client.
 - **Step 2 — done:** synthetic grading is aggregated into a teacher-analytics feed (`python -m eval.run --target teacher-feed`) and imported into the teacher DB (`teacher/db/seed_from_eval.py`), deriving `ConceptMetric.wrong_rate` and synthetic `StudentProfile` rows instead of hand-seeded numbers. Eval cases are tagged with the teacher's concept vocabulary (addresses C5).
 - **Step 3 — done:** generation and TA-bot judges + gates (`python -m eval.run --target generation | ta-bot`), judged at the prompt level so no student endpoint is required; CI wired in `.github/workflows/eval-gates.yml` (mock mode, no AWS) on the relevant paths.
-- **Step 4:** add analytics-faithfulness judge now that `teacher/services/` produces LLM analytics.
-- **Step 5:** calibrate thresholds from baseline; ratchet upward; use in Phase 6 as the LLM evaluation report.
+- **Step 4 — done:** analytics-faithfulness judge (`python -m eval.run --target analytics`). Decoupled from the teacher module: it takes the numeric facts (teacher_feed.json schema), independently narrates them, and judges whether the narration stays faithful (no invented figures / contradictions). Threshold calibrated to `>= 0.80` from live baseline runs.
+- **Step 5:** calibrate thresholds from a larger baseline; ratchet upward; use in Phase 6 as the LLM evaluation report.
 
 ## 7. Open questions
 
