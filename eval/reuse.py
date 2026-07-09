@@ -24,10 +24,17 @@ _ensure_student_on_path()
 
 try:
     # Pure string templates — safe to import offline (no AWS / no httpx).
-    from llm.prompts import GRADING_PROMPT, GRADING_SYSTEM
+    from llm.prompts import (
+        ASSIGNMENT_GENERATE,
+        ASSIGNMENT_SYSTEM,
+        GRADING_PROMPT,
+        GRADING_SYSTEM,
+        TA_BOT_PROMPT,
+        TA_BOT_SYSTEM,
+    )
 except Exception as exc:  # pragma: no cover - defensive
     raise ImportError(
-        f"Could not import grading prompts from {STUDENT_DIR / 'llm' / 'prompts.py'}: {exc}"
+        f"Could not import prompts from {STUDENT_DIR / 'llm' / 'prompts.py'}: {exc}"
     ) from exc
 
 

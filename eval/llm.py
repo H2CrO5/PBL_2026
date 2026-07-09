@@ -64,7 +64,47 @@ class MockProvider:
                 "feedback": "Mock offline feedback.",
             }
 
+        if kind == "generation":
+            # Deterministic placeholder question. Mock is for scaffolding/CI only;
+            # the real question comes from Bedrock in --live mode.
+            return {
+                "question_text": f"[mock generated question :: {seed}]",
+                "choices": None,
+                "correct_answer": "mock correct answer",
+                "explanation": "mock explanation",
+            }
+
+        if kind == "gen_judge":
+            score = self._quality_score(seed or prompt)
+            return {
+                "question_validity": score,
+                "concept_match": score,
+                "difficulty_match": score,
+                "rationale": "Mock offline judge.",
+            }
+
+        if kind == "ta_answer":
+            return {"answer_text": f"[mock TA answer grounded in the provided sources :: {seed}]"}
+
+        if kind == "ta_judge":
+            grounding = self._quality_score(f"{seed}:grounding")
+            # Hallucination is the "bad" direction: small by default, grows with jitter.
+            hallucination = round(min(1.0, (1.0 - grounding) * 0.5), 3)
+            return {
+                "grounding": grounding,
+                "hallucination": hallucination,
+                "rationale": "Mock offline judge.",
+            }
+
         return {}
+
+    def _quality_score(self, seed: str) -> float:
+        """Deterministic judge score in [0,1], high by default; jitter degrades it."""
+        base = _unit(seed)
+        score = 0.90 + 0.09 * base          # 0.90 .. 0.99 -> passes gates
+        if self.jitter:
+            score -= self.jitter * (0.4 + 0.5 * _unit(f"{seed}:{self._call}"))
+        return round(max(0.0, min(1.0, score)), 3)
 
 
 class BedrockProvider:
@@ -76,6 +116,11 @@ class BedrockProvider:
         self._client = client
 
     def complete_json(self, prompt, system="", temperature=0.7, *, kind="generic", seed=""):
+        # The TA bot answers in free text (multi-line), like production; wrap it
+        # so callers get a uniform dict. Everything else returns real JSON.
+        if kind == "ta_answer":
+            text = self._client.invoke(prompt=prompt, system=system, temperature=temperature)
+            return {"answer_text": text}
         return self._client.invoke_json(prompt=prompt, system=system, temperature=temperature)
 
 

@@ -41,6 +41,15 @@ python -m eval.run --target teacher-feed            # writes eval/reports/teache
 cd teacher && python -m db.seed && python -m db.seed_from_eval
 ```
 
+Generation and TA-bot gates (step 3) — judge the student's real generation and
+TA prompts at the prompt level (no student endpoint required):
+
+```bash
+python -m eval.run --target generation              # question validity / concept / difficulty
+python -m eval.run --target ta-bot                  # citation grounding / hallucination
+python -m eval.run --target generation --jitter 0.5 # mock: demonstrate a failing gate
+```
+
 Run from the repository root so `python -m eval.run` resolves the package.
 
 ## Modes
@@ -52,10 +61,15 @@ Run from the repository root so `python -m eval.run` resolves the package.
 
 ## Metrics (MVP)
 
-| Metric | Meaning | Gate |
-|---|---|---|
-| `grading_consistency` | 1 − (score spread / 100), averaged over cases×personas | `>= 0.90` |
-| `correctness_agreement` | fraction of cases×personas where all repeats agree on is_correct | `>= 0.90` |
+| Target | Metric | Meaning | Gate |
+|---|---|---|---|
+| grading | `grading_consistency` | 1 − (score spread / 100), averaged over cases×personas | `>= 0.90` |
+| grading | `correctness_agreement` | fraction of cases×personas where all repeats agree on is_correct | `>= 0.90` |
+| generation | `question_validity` | judge: generated question is well-formed with a correct answer | `>= 0.90` |
+| generation | `concept_match` | judge: question targets the requested concept | `>= 0.85` |
+| generation | `difficulty_match` | judge: question matches the requested difficulty | `>= 0.80` |
+| ta-bot | `citation_grounding_rate` | judge: fraction of answer claims supported by the sources | `>= 0.85` |
+| ta-bot | `hallucination_rate` | judge: fraction of answer claims unsupported/contradicted | `<= 0.05` |
 
 Thresholds are starting values in `gates/thresholds.py`; calibrate from a
 baseline run, then ratchet up.
@@ -74,14 +88,23 @@ eval/
   reuse.py              imports student prompts / Bedrock client (no duplication)
   personas/             persona definitions + answer simulation
   judges/grading.py     grading consistency judge
+  judges/generation.py  assignment-generation judge
+  judges/ta_bot.py      TA-bot grounding / hallucination judge
   gates/thresholds.py   metric thresholds + pass/fail
-  datasets/seed_cases.json   fixture assignments
+  datasets/*.json       fixture assignments / generation / TA cases
   reports/              run reports (git-ignored)
 ```
 
+## CI
+
+`.github/workflows/eval-gates.yml` runs the grading, generation, and TA-bot
+gates in mock mode on pull requests that touch `student/llm/**`,
+`student/api/routers/assignments.py`, `student/api/routers/chat.py`,
+`teacher/services/**`, or `eval/**`. Mock mode is standard-library only, so it
+needs no AWS credentials and makes no paid calls; a failing gate blocks merge.
+
 ## Not in the MVP (next steps)
 
-Generation / TA-bot / analytics-faithfulness judges, DB-backed
-`eval_runs`/`eval_cases` tables, and CI wiring. (Feeding synthetic submissions
-into teacher analytics is done — see the teacher-feed target above.)
-See `docs/evaluation-system-design.md` section 6.
+Analytics-faithfulness judge (step 4) and DB-backed `eval_runs`/`eval_cases`
+tables. Steps 1–3 (grading, teacher-feed, generation, TA-bot judges + CI) are
+done. See `docs/evaluation-system-design.md` section 6.

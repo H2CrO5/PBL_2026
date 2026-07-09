@@ -12,6 +12,15 @@ GATES = {
         "grading_consistency": (">=", 0.90),
         "correctness_agreement": (">=", 0.90),
     },
+    "generation": {
+        "question_validity": (">=", 0.90),
+        "concept_match": (">=", 0.85),
+        "difficulty_match": (">=", 0.80),
+    },
+    "ta-bot": {
+        "citation_grounding_rate": (">=", 0.85),
+        "hallucination_rate": ("<=", 0.05),
+    },
 }
 
 _OPS = {

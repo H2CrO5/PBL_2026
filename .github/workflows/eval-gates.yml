@@ -1,0 +1,32 @@
+name: eval gates
+
+# Shared quality constraint for both groups: when code that affects LLM output
+# changes, the evaluation gates must pass. Runs in offline mock mode, so no AWS
+# credentials or paid model calls are needed. A failing gate exits non-zero and
+# blocks the merge.
+on:
+  pull_request:
+    paths:
+      - 'student/llm/**'
+      - 'student/api/routers/assignments.py'
+      - 'student/api/routers/chat.py'
+      - 'teacher/services/**'
+      - 'eval/**'
+      - '.github/workflows/eval-gates.yml'
+  workflow_dispatch: {}
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      # Mock mode is standard-library only; no dependency install is required.
+      - name: Grading gate (mock)
+        run: python -m eval.run --target grading
+      - name: Generation gate (mock)
+        run: python -m eval.run --target generation
+      - name: TA-bot gate (mock)
+        run: python -m eval.run --target ta-bot

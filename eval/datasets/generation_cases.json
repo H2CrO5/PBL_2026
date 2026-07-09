@@ -1,0 +1,26 @@
+[
+  {
+    "id": "gen-edge-easy",
+    "concept": "Edge-case handling",
+    "difficulty": "easy",
+    "question_type": "short_answer"
+  },
+  {
+    "id": "gen-decomp-medium",
+    "concept": "Problem decomposition",
+    "difficulty": "medium",
+    "question_type": "short_answer"
+  },
+  {
+    "id": "gen-ds-medium",
+    "concept": "Data-structure selection",
+    "difficulty": "medium",
+    "question_type": "multiple_choice"
+  },
+  {
+    "id": "gen-complexity-hard",
+    "concept": "Complexity intuition",
+    "difficulty": "hard",
+    "question_type": "multiple_choice"
+  }
+]

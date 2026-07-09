@@ -20,14 +20,27 @@ from pathlib import Path
 
 from .feeds.teacher_analytics import build_feed
 from .gates.thresholds import evaluate_gate
+from .judges.generation import generate_question, judge_question
 from .judges.grading import grade_answer
+from .judges.ta_bot import generate_answer, judge_answer
 from .llm import MockProvider, load_bedrock_provider
 from .personas.definitions import PERSONAS
 from .personas.simulate import simulate_answer
 
 EVAL_DIR = Path(__file__).resolve().parent
-DEFAULT_CASES = EVAL_DIR / "datasets" / "seed_cases.json"
+DATASETS_DIR = EVAL_DIR / "datasets"
+DEFAULT_CASES = DATASETS_DIR / "seed_cases.json"
+GENERATION_CASES = DATASETS_DIR / "generation_cases.json"
+TA_CASES = DATASETS_DIR / "ta_cases.json"
 REPORTS_DIR = EVAL_DIR / "reports"
+
+# Per-target default dataset when --cases is not given.
+DEFAULT_DATASET = {
+    "grading": DEFAULT_CASES,
+    "teacher-feed": DEFAULT_CASES,
+    "generation": GENERATION_CASES,
+    "ta-bot": TA_CASES,
+}
 
 
 def _load_cases(path: Path):
@@ -75,6 +88,80 @@ def run_grading(provider, cases, repeats: int):
         else 0.0,
     }
     return metrics, groups
+
+
+def run_generation(provider, cases):
+    """Generate a question per case and judge validity / concept / difficulty."""
+    groups = []
+    for case in cases:
+        generated = generate_question(provider, case)
+        j = judge_question(provider, case, generated)
+        groups.append(
+            {
+                "case_id": case["id"],
+                "concept": case["concept"],
+                "difficulty": case["difficulty"],
+                "question_validity": round(float(j.get("question_validity", 0.0)), 3),
+                "concept_match": round(float(j.get("concept_match", 0.0)), 3),
+                "difficulty_match": round(float(j.get("difficulty_match", 0.0)), 3),
+                "question_preview": str(generated.get("question_text", ""))[:80],
+            }
+        )
+
+    def _mean(key):
+        return round(statistics.mean(g[key] for g in groups), 3) if groups else 0.0
+
+    metrics = {
+        "question_validity": _mean("question_validity"),
+        "concept_match": _mean("concept_match"),
+        "difficulty_match": _mean("difficulty_match"),
+    }
+    return metrics, groups
+
+
+def run_ta_bot(provider, cases):
+    """Generate a TA answer per case and judge grounding / hallucination."""
+    groups = []
+    for case in cases:
+        answer = generate_answer(provider, case)
+        j = judge_answer(provider, case, answer)
+        groups.append(
+            {
+                "case_id": case["id"],
+                "grounding": round(float(j.get("grounding", 0.0)), 3),
+                "hallucination": round(float(j.get("hallucination", 0.0)), 3),
+                "answer_preview": answer[:80],
+            }
+        )
+
+    metrics = {
+        "citation_grounding_rate": round(statistics.mean(g["grounding"] for g in groups), 3)
+        if groups
+        else 0.0,
+        "hallucination_rate": round(statistics.mean(g["hallucination"] for g in groups), 3)
+        if groups
+        else 0.0,
+    }
+    return metrics, groups
+
+
+def _print_gate_summary(target, provider, metrics, groups, gate_passed, gate_results):
+    """Generic metrics + gate printer for non-grading targets."""
+    print(f"\n=== eval: {target} | provider={provider.name} | cases={len(groups)} ===")
+    for g in groups:
+        detail = " ".join(f"{k}={v}" for k, v in g.items() if k not in ("question_preview", "answer_preview"))
+        print(f"  {detail}")
+
+    print("\nMetrics:")
+    for name, value in metrics.items():
+        print(f"  {name:<26} {value}")
+
+    print("\nGates:")
+    for r in gate_results:
+        mark = "PASS" if r["passed"] else "FAIL"
+        print(f"  [{mark}] {r['metric']} {r['op']} {r['threshold']} (value={r['value']})")
+
+    print(f"\nRESULT: {'PASS' if gate_passed else 'FAIL'}")
 
 
 def _print_summary(target, provider, repeats, metrics, groups, gate_passed, gate_results):
@@ -130,28 +217,46 @@ def _run_teacher_feed(provider, cases, out_dir: Path) -> int:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="LLM subsystem evaluation harness")
-    parser.add_argument("--target", default="grading", choices=["grading", "teacher-feed"])
+    parser.add_argument(
+        "--target",
+        default="grading",
+        choices=["grading", "teacher-feed", "generation", "ta-bot"],
+    )
     parser.add_argument("--live", action="store_true", help="use real Bedrock (needs AWS creds)")
     parser.add_argument("--repeats", type=int, default=3, help="grading repeats per answer")
     parser.add_argument(
         "--jitter",
         type=float,
         default=0.0,
-        help="mock only: inject grader variance (0..1) to simulate inconsistency",
+        help="mock only: inject judge/grader variance (0..1) to simulate a failing gate",
     )
-    parser.add_argument("--cases", default=str(DEFAULT_CASES), help="path to seed cases JSON")
+    parser.add_argument(
+        "--cases",
+        default=None,
+        help="path to a cases JSON (defaults to the dataset for the chosen target)",
+    )
     parser.add_argument("--out", default=str(REPORTS_DIR), help="report output directory")
     args = parser.parse_args(argv)
 
     provider = load_bedrock_provider() if args.live else MockProvider(jitter=args.jitter)
-    cases = _load_cases(Path(args.cases))
+    cases_path = Path(args.cases) if args.cases else DEFAULT_DATASET[args.target]
+    cases = _load_cases(cases_path)
 
     if args.target == "teacher-feed":
         return _run_teacher_feed(provider, cases, Path(args.out))
 
-    metrics, groups = run_grading(provider, cases, args.repeats)
+    if args.target == "grading":
+        metrics, groups = run_grading(provider, cases, args.repeats)
+    elif args.target == "generation":
+        metrics, groups = run_generation(provider, cases)
+    else:  # ta-bot
+        metrics, groups = run_ta_bot(provider, cases)
+
     gate_passed, gate_results = evaluate_gate(args.target, metrics)
-    _print_summary(args.target, provider, args.repeats, metrics, groups, gate_passed, gate_results)
+    if args.target == "grading":
+        _print_summary(args.target, provider, args.repeats, metrics, groups, gate_passed, gate_results)
+    else:
+        _print_gate_summary(args.target, provider, metrics, groups, gate_passed, gate_results)
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
