@@ -5,6 +5,7 @@ import streamlit as st
 from pathlib import Path
 
 from config import API_BASE_URL
+from ui.i18n import t
 
 BRAND_DIR = Path(__file__).resolve().parents[3] / "assets" / "branding"
 LOGO_PATH = BRAND_DIR / "classpilot-logo-light.png"
@@ -14,14 +15,13 @@ def render():
     left, center, right = st.columns([1, 2, 1])
     with center:
         st.image(str(LOGO_PATH), width="stretch")
-        st.caption("Smart assistance. Less workload. More teaching.")
-        st.title("Teacher Login")
-        st.markdown("Enter the ClassPilot teacher workspace.")
+        st.title(t("teacher_login"))
+        st.markdown(t("login_intro"))
 
         with st.form("teacher_login"):
-            teacher_code = st.text_input("Teacher ID", value="t2024001")
-            password = st.text_input("Password", type="password", value="demo123")
-            submitted = st.form_submit_button("Login", width="stretch")
+            teacher_code = st.text_input(t("teacher_id"), value="t2024001")
+            password = st.text_input(t("password"), type="password", value="demo123")
+            submitted = st.form_submit_button(t("login"), width="stretch")
 
     if submitted:
         try:
@@ -36,10 +36,10 @@ def render():
                 st.session_state.teacher = data["teacher"]
                 st.rerun()
             else:
-                st.error(resp.json().get("detail", "Login failed"))
+                st.error(resp.json().get("detail", t("login_failed")))
         except httpx.ConnectError:
-            st.error("Cannot connect to teacher API server.")
+            st.error(t("connection_error"))
 
     with center:
         st.divider()
-        st.caption("Demo account: t2024001 / demo123")
+        st.caption(t("demo_account"))

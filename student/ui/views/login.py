@@ -18,7 +18,6 @@ def render():
     left, center, right = st.columns([1, 2, 1])
     with center:
         st.image(str(LOGO_PATH), width="stretch")
-        st.caption("Student learning workspace")
         st.title(t("login_title"))
         st.markdown(t("login_instruction"))
 

@@ -31,6 +31,24 @@ a { color: var(--classpilot-teal) !important; }
 
 if "token" not in st.session_state:
     st.session_state.token = None
+if "teacher_lang" not in st.session_state:
+    st.session_state.teacher_lang = "en"
+
+_lang_left, _lang_right = st.columns([5, 1])
+with _lang_right:
+    _languages = {"en": "English", "ja": "日本語"}
+    _current_lang = st.session_state.teacher_lang
+    _selected_lang = st.selectbox(
+        "Language",
+        options=list(_languages),
+        format_func=_languages.get,
+        index=list(_languages).index(_current_lang),
+        label_visibility="collapsed",
+        key="teacher_language_selector",
+    )
+    if _selected_lang != _current_lang:
+        st.session_state.teacher_lang = _selected_lang
+        st.rerun()
 
 page = render_sidebar()
 
