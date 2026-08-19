@@ -8,6 +8,7 @@ import json
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session as DBSession
 
 from api.dependencies import get_current_student
@@ -30,15 +31,43 @@ from llm.memory import build_student_memory
 router = APIRouter(prefix="/assignments", tags=["assignments"])
 
 
+def _assignment_response(db: DBSession, assignment: Assignment, student_id: int) -> AssignmentResponse:
+    attempts_used = db.query(Submission).filter(
+        Submission.assignment_id == assignment.id,
+        Submission.student_id == student_id,
+    ).count()
+    return AssignmentResponse(
+        id=assignment.id,
+        topic=assignment.topic,
+        difficulty=assignment.difficulty,
+        question_text=assignment.question_text,
+        choices=json.loads(assignment.choices) if assignment.choices else None,
+        question_type=assignment.question_type,
+        lecture_id=assignment.lecture_id,
+        course_id=assignment.course_id,
+        title=assignment.title,
+        max_attempts=assignment.max_attempts,
+        attempts_used=attempts_used,
+        due_at=assignment.due_at,
+        created_at=assignment.created_at,
+    )
+
+
 @router.get("/pending", response_model=list[AssignmentResponse])
 def get_pending(
     student: Student = Depends(get_current_student),
     db: DBSession = Depends(get_db),
 ):
     """Return assignments that the student has not yet submitted."""
-    submitted_ids = (
+    exhausted_ids = (
         db.query(Submission.assignment_id)
-        .filter(Submission.student_id == student.id)
+        .join(Assignment, Submission.assignment_id == Assignment.id)
+        .filter(
+            Submission.student_id == student.id,
+            Submission.status.in_(["grading", "graded"]),
+        )
+        .group_by(Submission.assignment_id, Assignment.max_attempts)
+        .having(func.count(Submission.id) >= Assignment.max_attempts)
         .scalar_subquery()
     )
 
@@ -46,23 +75,14 @@ def get_pending(
         db.query(Assignment)
         .filter(
             Assignment.student_id == student.id,
-            ~Assignment.id.in_(submitted_ids),
+            ~Assignment.id.in_(exhausted_ids),
         )
         .order_by(Assignment.created_at.desc())
         .all()
     )
 
     return [
-        AssignmentResponse(
-            id=a.id,
-            topic=a.topic,
-            difficulty=a.difficulty,
-            question_text=a.question_text,
-            choices=json.loads(a.choices) if a.choices else None,
-            question_type=a.question_type,
-            lecture_id=a.lecture_id,
-            created_at=a.created_at,
-        )
+        _assignment_response(db, a, student.id)
         for a in pending
     ]
 
@@ -73,9 +93,15 @@ def get_pending_by_lecture(
     db: DBSession = Depends(get_db),
 ):
     """Return pending assignments grouped by lecture."""
-    submitted_ids = (
+    exhausted_ids = (
         db.query(Submission.assignment_id)
-        .filter(Submission.student_id == student.id)
+        .join(Assignment, Submission.assignment_id == Assignment.id)
+        .filter(
+            Submission.student_id == student.id,
+            Submission.status.in_(["grading", "graded"]),
+        )
+        .group_by(Submission.assignment_id, Assignment.max_attempts)
+        .having(func.count(Submission.id) >= Assignment.max_attempts)
         .scalar_subquery()
     )
 
@@ -83,7 +109,7 @@ def get_pending_by_lecture(
         db.query(Assignment)
         .filter(
             Assignment.student_id == student.id,
-            ~Assignment.id.in_(submitted_ids),
+            ~Assignment.id.in_(exhausted_ids),
         )
         .order_by(Assignment.created_at.desc())
         .all()
@@ -108,16 +134,7 @@ def get_pending_by_lecture(
             continue
         lec = lectures[lid]
         assignments = [
-            AssignmentResponse(
-                id=a.id,
-                topic=a.topic,
-                difficulty=a.difficulty,
-                question_text=a.question_text,
-                choices=json.loads(a.choices) if a.choices else None,
-                question_type=a.question_type,
-                lecture_id=a.lecture_id,
-                created_at=a.created_at,
-            )
+            _assignment_response(db, a, student.id)
             for a in lecture_map[lid]
         ]
         result.append(LectureAssignments(
@@ -135,16 +152,7 @@ def get_pending_by_lecture(
     # Append unassigned assignments under a virtual "その他" lecture
     if None in lecture_map:
         ungrouped = [
-            AssignmentResponse(
-                id=a.id,
-                topic=a.topic,
-                difficulty=a.difficulty,
-                question_text=a.question_text,
-                choices=json.loads(a.choices) if a.choices else None,
-                question_type=a.question_type,
-                lecture_id=None,
-                created_at=a.created_at,
-            )
+            _assignment_response(db, a, student.id)
             for a in lecture_map[None]
         ]
         result.append(LectureAssignments(
@@ -164,7 +172,7 @@ def get_history_by_lecture(
     submissions = (
         db.query(Submission)
         .join(Assignment, Submission.assignment_id == Assignment.id)
-        .filter(Submission.student_id == student.id)
+        .filter(Submission.student_id == student.id, Submission.status == "graded")
         .order_by(Submission.submitted_at.desc())
         .all()
     )
@@ -200,6 +208,9 @@ def get_history_by_lecture(
                 is_correct=sub.is_correct,
                 score=sub.score,
                 feedback=sub.feedback,
+                attempt_number=sub.attempt_number,
+                grading_source=sub.grading_source,
+                missing_concepts=json.loads(sub.missing_concepts or "[]"),
                 submitted_at=sub.submitted_at,
             )
             for sub in lecture_map[lid]
@@ -234,56 +245,99 @@ def submit_answer(
     if not assignment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
 
-    # Check for duplicate submission
-    existing = (
+    # Allow a bounded number of attempts. Analytics use only the latest graded
+    # attempt, so retries do not inflate averages or completion rates.
+    consumed_attempts = (
         db.query(Submission)
-        .filter(Submission.assignment_id == assignment.id, Submission.student_id == student.id)
-        .first()
+        .filter(
+            Submission.assignment_id == assignment.id,
+            Submission.student_id == student.id,
+            Submission.status.in_(["grading", "graded"]),
+        )
+        .count()
     )
-    if existing:
+    if consumed_attempts >= assignment.max_attempts:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Already submitted an answer for this assignment",
+            detail=f"Maximum attempts reached ({assignment.max_attempts})",
         )
 
-    # Grade with LLM
-    grade_prompt = prompts.GRADING_PROMPT.format(
-        question_text=assignment.question_text,
-        question_type=assignment.question_type,
-        correct_answer=assignment.correct_answer,
-        student_answer=req.answer_text,
-    )
-    grade_result = bedrock_client.invoke_json(
-        prompt=grade_prompt,
-        system=prompts.GRADING_SYSTEM,
-        temperature=0.3,
-    )
-
-    is_correct = grade_result.get("is_correct", False)
-    score = float(grade_result.get("score", 0))
-    feedback = grade_result.get("feedback", "")
-
-    # Save submission
+    attempt_number = db.query(Submission).filter(
+        Submission.assignment_id == assignment.id,
+        Submission.student_id == student.id,
+    ).count() + 1
     submission = Submission(
         assignment_id=assignment.id,
         student_id=student.id,
         answer_text=req.answer_text,
-        is_correct=is_correct,
-        score=score,
-        feedback=feedback,
+        is_correct=False,
+        score=0,
+        feedback="Grading in progress",
         source="real",
+        attempt_number=attempt_number,
+        status="grading",
+        max_score=100.0,
+        grading_source="auto",
     )
     db.add(submission)
+    db.commit()
+    db.refresh(submission)
+
+    # Grade with LLM. Persist an explicit failure state so the answer is never
+    # lost and a failed provider call does not consume a permitted graded retry.
+    grade_prompt = prompts.GRADING_PROMPT.format(
+        question_text=assignment.question_text,
+        question_type=assignment.question_type,
+        correct_answer=assignment.correct_answer,
+        rubric=assignment.rubric,
+        student_answer=req.answer_text,
+    )
+    try:
+        grade_result = bedrock_client.invoke_json(
+            prompt=grade_prompt,
+            system=prompts.GRADING_SYSTEM,
+            temperature=0.3,
+        )
+    except Exception as exc:
+        submission.status = "grading_failed"
+        submission.feedback = "Automatic grading is temporarily unavailable. Please retry."
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Automatic grading is temporarily unavailable; the answer was saved",
+        ) from exc
+
+    score = round(max(0.0, min(100.0, float(grade_result.get("score", 0)))), 1)
+    is_correct = score >= 60.0
+    feedback = str(grade_result.get("feedback") or "Review the model answer and rubric.")
+    raw_missing = grade_result.get("missing_concepts", [])
+    missing_concepts = (
+        [str(item) for item in raw_missing if str(item).strip()]
+        if isinstance(raw_missing, list) else []
+    )
+    raw_pattern = grade_result.get("teacher_error_pattern")
+    teacher_error_pattern = str(raw_pattern) if raw_pattern else None
+
+    submission.is_correct = is_correct
+    submission.score = score
+    submission.feedback = feedback
+    submission.status = "graded"
+    submission.auto_score = score
+    submission.auto_feedback = feedback
+    submission.missing_concepts = json.dumps(missing_concepts, ensure_ascii=False)
+    submission.teacher_error_pattern = teacher_error_pattern
     # SessionLocal uses autoflush=False. Flush here so the current answer is
     # included in the memory recalculation below.
     db.flush()
 
-    # Update student stats
-    student.total_answered += 1
-    if is_correct:
-        student.total_correct += 1
-    # Recalculate overall score as running average
-    all_scores = [s.score for s in db.query(Submission).filter(Submission.student_id == student.id).all()]
+    # Recalculate progress from the latest graded real attempt per assignment.
+    from services.progress import latest_attempts
+    latest = latest_attempts(
+        db.query(Submission).filter(Submission.student_id == student.id).all()
+    )
+    all_scores = [item.score for item in latest]
+    student.total_answered = len(latest)
+    student.total_correct = sum(1 for item in latest if item.is_correct)
     student.overall_score = round(sum(all_scores) / len(all_scores), 1)
 
     # Update weak/strong topics
@@ -303,6 +357,10 @@ def submit_answer(
         feedback=submission.feedback,
         correct_answer=assignment.correct_answer,
         explanation=assignment.explanation,
+        attempt_number=submission.attempt_number,
+        attempts_remaining=max(0, assignment.max_attempts - submission.attempt_number),
+        grading_source=submission.grading_source,
+        missing_concepts=missing_concepts,
         submitted_at=submission.submitted_at,
     )
 
@@ -317,14 +375,14 @@ def get_history(
     """Return past submissions with assignment details."""
     total = (
         db.query(Submission)
-        .filter(Submission.student_id == student.id)
+        .filter(Submission.student_id == student.id, Submission.status == "graded")
         .count()
     )
 
     submissions = (
         db.query(Submission)
         .join(Assignment, Submission.assignment_id == Assignment.id)
-        .filter(Submission.student_id == student.id)
+        .filter(Submission.student_id == student.id, Submission.status == "graded")
         .order_by(Submission.submitted_at.desc())
         .offset(offset)
         .limit(limit)

@@ -125,6 +125,10 @@ def _render_pending_by_lecture():
                     col_info, col_btn = st.columns([4, 1])
                     with col_info:
                         st.markdown(f"**{a['topic']}**　`{diff}`　`{qtype}`")
+                        if a.get("max_attempts", 1) > 1:
+                            st.caption(
+                                f"Attempt {a.get('attempts_used', 0) + 1} of {a['max_attempts']}"
+                            )
                         st.caption(a["question_text"][:80] + ("..." if len(a["question_text"]) > 80 else ""))
                     with col_btn:
                         if st.button(t("answer_button"), key=f"start_{a['id']}", use_container_width=True):
@@ -192,6 +196,8 @@ def _render_feedback(assignment: dict, submission: dict):
 
     st.markdown(f"**{t('feedback_label')}**")
     st.markdown(submission["feedback"])
+    if submission.get("attempts_remaining", 0):
+        st.info(f"You can retry {submission['attempts_remaining']} more time(s).")
 
     with st.expander(t("show_answer")):
         st.markdown(f"**{t('correct_answer_label')}** {submission['correct_answer']}")
@@ -242,6 +248,10 @@ def _render_history():
                         st.markdown(f"**{t('your_answer')}** {item['answer_text']}")
                         st.markdown(f"**{t('feedback_label')}** {item['feedback']}")
                         st.markdown(f"**{t('submitted_at')}** {item['submitted_at']}")
+                        st.caption(
+                            f"Attempt {item.get('attempt_number', 1)} | "
+                            f"Grading: {item.get('grading_source', 'auto')}"
+                        )
 
 
 def _render_history_chat():

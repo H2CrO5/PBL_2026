@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session as DBSession
 from api.dependencies import get_current_student
 from api.schemas.chat import ChatHistoryResponse, ChatMessageResponse, ChatMessageRequest, SourceInfo
 from db.database import get_db
-from db.models import ChatMessage, Student
+from db.models import ChatMessage, Course, Enrollment, Student
 from llm import bedrock_client, prompts
+from services.course_rag import retrieve_course
 from vectorstore.retriever import retrieve
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -31,12 +32,38 @@ def send_message(
     db.add(user_msg)
     db.flush()
 
-    # RAG retrieval
-    context_chunks = retrieve(req.message)
-    context_text = "\n\n---\n\n".join(c["text"] for c in context_chunks)
+    # Resolve only a course the authenticated student is actively enrolled in.
+    course_query = (
+        db.query(Course)
+        .join(Enrollment, Enrollment.course_id == Course.id)
+        .filter(Enrollment.student_id == student.id, Enrollment.status == "active")
+    )
+    if req.external_course_id:
+        course_query = course_query.filter(Course.external_key == req.external_course_id)
+    course = course_query.order_by(Course.created_at.desc()).first()
+
+    context_chunks = retrieve_course(db, course.id, req.message) if course else []
+    if not context_chunks:
+        # Preserve the original fixed-document demo until Teacher materials are
+        # synced. A missing local FAISS index should not break the TA Bot.
+        try:
+            context_chunks = retrieve(req.message)
+        except FileNotFoundError:
+            context_chunks = []
+    context_text = "\n\n---\n\n".join(
+        f"[資料: {c['source']} / {c.get('source_locator', 'chunk')}]\n{c['text']}"
+        for c in context_chunks
+    ) or "（この質問に利用できる授業教材はありません）"
 
     sources = [
-        {"source": c["source"], "score": round(c["score"], 3)}
+        {
+            "source": c["source"],
+            "score": round(c["score"], 3),
+            "material_id": c.get("material_id"),
+            "chunk_index": c.get("chunk_index"),
+            "source_locator": c.get("source_locator"),
+            "retrieval_mode": c.get("retrieval_mode", "legacy-faiss"),
+        }
         for c in context_chunks
     ]
 

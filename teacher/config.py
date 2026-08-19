@@ -37,3 +37,13 @@ USE_LLM = os.getenv("TEACHER_USE_LLM", "").strip().lower() not in ("", "0", "fal
 STUDENT_API_BASE_URL = os.getenv("STUDENT_API_BASE_URL", "http://localhost:8000").rstrip("/")
 STUDENT_INTEGRATION_TOKEN = os.getenv("TEACHER_INTEGRATION_TOKEN", "")
 STUDENT_API_TIMEOUT = float(os.getenv("STUDENT_API_TIMEOUT", "5"))
+STUDENT_RAG_TIMEOUT = float(os.getenv("STUDENT_RAG_TIMEOUT", "300"))
+MAX_MATERIAL_UPLOAD_BYTES = int(os.getenv("MAX_MATERIAL_UPLOAD_BYTES", str(20 * 1024 * 1024)))
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "TEACHER_CORS_ORIGINS",
+        "http://localhost:8601,http://127.0.0.1:8601",
+    ).split(",")
+    if origin.strip()
+]

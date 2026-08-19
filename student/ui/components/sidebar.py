@@ -9,11 +9,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from config import API_BASE_URL
 from ui.i18n import t
 
+LOGO_PATH = Path(__file__).resolve().parents[3] / "assets" / "branding" / "classpilot-logo-light.png"
+
 
 def render_sidebar():
     """Render the sidebar and return the selected page key."""
     with st.sidebar:
-        st.title(f"📚 {t('app_title')}")
+        st.image(str(LOGO_PATH), width="stretch")
+        st.caption(f"Student · {t('app_title')}")
 
         if "token" in st.session_state and st.session_state.token:
             student = st.session_state.get("student", {})

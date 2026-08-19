@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from urllib.parse import quote
 
 import httpx
 
@@ -38,24 +39,75 @@ def integration_enabled() -> bool:
     return bool(config.STUDENT_INTEGRATION_TOKEN)
 
 
-def fetch_feed() -> dict | None:
+def _request(
+    method: str,
+    path: str,
+    payload: dict | None = None,
+    timeout: float | None = None,
+) -> dict:
+    try:
+        response = httpx.request(
+            method,
+            f"{config.STUDENT_API_BASE_URL}{path}",
+            headers={"X-Integration-Token": config.STUDENT_INTEGRATION_TOKEN},
+            json=payload,
+            timeout=timeout or config.STUDENT_API_TIMEOUT,
+        )
+        response.raise_for_status()
+        result = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise StudentDataUnavailable(f"Student integration unavailable: {exc}") from exc
+    if not isinstance(result, dict):
+        raise StudentDataUnavailable("Student integration returned an invalid payload")
+    return result
+
+
+def fetch_feed(external_course_id: str | None = None) -> dict | None:
     """Return None only when integration is intentionally not configured."""
     if not integration_enabled():
         return None
-    try:
-        response = httpx.get(
-            f"{config.STUDENT_API_BASE_URL}/integrations/teacher/analytics",
-            headers={"X-Integration-Token": config.STUDENT_INTEGRATION_TOKEN},
-            timeout=config.STUDENT_API_TIMEOUT,
-        )
-        response.raise_for_status()
-        feed = response.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        raise StudentDataUnavailable(f"Student analytics API unavailable: {exc}") from exc
+    path = "/integrations/teacher/analytics"
+    if external_course_id:
+        path += f"?external_course_id={quote(external_course_id, safe='')}"
+    feed = _request("GET", path)
 
     if not isinstance(feed, dict) or not isinstance(feed.get("students"), list):
         raise StudentDataUnavailable("Student analytics API returned an invalid payload")
     return feed
+
+
+def sync_course(payload: dict) -> dict:
+    return _request("POST", "/integrations/teacher/courses/sync", payload)
+
+
+def publish_assignment(payload: dict) -> dict:
+    return _request("POST", "/integrations/teacher/assignments/publish", payload)
+
+
+def sync_material(payload: dict) -> dict:
+    return _request(
+        "POST",
+        "/integrations/teacher/materials/sync",
+        payload,
+        timeout=config.STUDENT_RAG_TIMEOUT,
+    )
+
+
+def override_grade(
+    submission_id: int,
+    external_course_id: str,
+    score: float,
+    feedback: str,
+) -> dict:
+    return _request(
+        "POST",
+        f"/integrations/teacher/submissions/{submission_id}/override",
+        {
+            "external_course_id": external_course_id,
+            "score": score,
+            "feedback": feedback,
+        },
+    )
 
 
 def _recommended_action(weak_topics: list[str], submission_count: int) -> str:
@@ -92,8 +144,11 @@ def teacher_records(feed: dict) -> tuple[list[LiveStudent], list[LiveConcept], d
             concept=str(item["topic"]),
             wrong_rate=float(item.get("wrong_rate", 0)),
             misconception=(
-                f"{item.get('incorrect', 0)} of {item.get('attempts', 0)} real submissions "
-                "were graded incorrect."
+                "; ".join(item.get("common_error_patterns", []))
+                or (
+                    f"{item.get('incorrect', 0)} of {item.get('attempts', 0)} real submissions "
+                    "were graded incorrect."
+                )
             ),
             recommended_focus=f"Review real student evidence for {item['topic']}.",
         )

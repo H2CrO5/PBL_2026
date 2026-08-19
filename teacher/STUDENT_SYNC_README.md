@@ -1,6 +1,7 @@
 # Teacher Part Development Sync README
 
-This document explains the current Teacher Part development plan for the Student Part team. The Teacher Part is an independent module for now, but it is intentionally shaped so the future shared backend can connect it with the Student Part.
+This document records the Teacher/Student contract. The modules keep independent
+local databases but are now connected through authenticated integration APIs.
 
 ## Current Development Assumption
 
@@ -9,7 +10,9 @@ The project is currently split into two parallel modules:
 - Student Part: student dashboard, assignment display, answer submission, grading result, feedback, history, and TA Bot.
 - Teacher Part: teacher dashboard, material management, question seed management, class analytics, student analytics, and lecture improvement suggestions.
 
-During this stage, each part can run with its own local database and mock/demo data. After both modules are stable, the shared backend will replace local data stores and unify authentication, RAG, LLM calls, analytics, and assignment generation.
+Each part can still run in demo mode. When integration is configured, stable
+course IDs, RAG materials, published assignments, real analytics, and grade
+corrections move through the service boundary.
 
 ## Implemented Live Submission Bridge
 
@@ -29,10 +32,9 @@ service-authenticated, excludes seed/synthetic submissions, and does not expose
 credentials or correct answers. If integration is configured but unavailable,
 Teacher returns 503 instead of silently displaying demo values.
 
-The current Student prototype still represents one implicit course because its
-lecture model has no `course_id`. The bridge therefore maps that one Student
-course to the authenticated teacher's first course. Adding shared course and
-enrollment IDs remains the next shared-backend migration step.
+Student now stores explicit courses and enrollments keyed by the Teacher
+course's stable `external_key`. Legacy rows are conservatively migrated into a
+separate legacy course.
 
 Copy `.env.example` to `.env`; both `student/run.sh` and `teacher/run.sh` load
 the shared root `.env` automatically. This bridge is intentionally compatible

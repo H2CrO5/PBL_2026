@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LectureInfo(BaseModel):
@@ -24,6 +24,11 @@ class AssignmentResponse(BaseModel):
     choices: list[str] | None = None
     question_type: str
     lecture_id: int | None = None
+    course_id: int | None = None
+    title: str | None = None
+    max_attempts: int = 1
+    attempts_used: int = 0
+    due_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -61,6 +66,10 @@ class SubmissionResponse(BaseModel):
     feedback: str
     correct_answer: str
     explanation: str
+    attempt_number: int = 1
+    attempts_remaining: int = 0
+    grading_source: str = "auto"
+    missing_concepts: list[str] = Field(default_factory=list)
     submitted_at: datetime
 
 
@@ -93,6 +102,9 @@ class HistoryAssignment(BaseModel):
     is_correct: bool
     score: float
     feedback: str
+    attempt_number: int = 1
+    grading_source: str = "auto"
+    missing_concepts: list[str] = Field(default_factory=list)
     submitted_at: datetime
 
 

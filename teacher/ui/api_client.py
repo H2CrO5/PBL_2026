@@ -51,3 +51,27 @@ def post(path: str, json_data: dict | None = None, timeout: float = 20.0) -> Any
         st.error("Request timed out.")
     return None
 
+
+def post_file(
+    path: str,
+    filename: str,
+    content: bytes,
+    data: dict[str, str],
+    timeout: float = 300.0,
+) -> Any | None:
+    try:
+        resp = httpx.post(
+            f"{API_BASE_URL}{path}",
+            data=data,
+            files={"file": (filename, content)},
+            headers=auth_headers(),
+            timeout=timeout,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        st.error(resp.json().get("detail", f"API error: {resp.status_code}"))
+    except httpx.ConnectError:
+        st.error("Cannot connect to teacher API server.")
+    except httpx.ReadTimeout:
+        st.error("Material processing timed out.")
+    return None

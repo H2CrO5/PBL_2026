@@ -56,4 +56,38 @@ def render():
             st.markdown(f"**Question:** {submission['question_text']}")
             st.markdown(f"**Student answer:** {submission['answer_text']}")
             st.markdown(f"**Feedback:** {submission['feedback']}")
+            if submission.get("missing_concepts"):
+                st.markdown(
+                    "**Missing concepts:** " + ", ".join(submission["missing_concepts"])
+                )
+            if submission.get("teacher_error_pattern"):
+                st.markdown(
+                    f"**Error pattern:** {submission['teacher_error_pattern']}"
+                )
+            st.caption(
+                f"Attempt {submission.get('attempt_number', 1)} | "
+                f"Grading: {submission.get('grading_source', 'auto')}"
+            )
             st.caption(f"Submitted: {submission['submitted_at']}")
+            with st.form(f"override_{submission['submission_id']}"):
+                corrected_score = st.number_input(
+                    "Corrected score",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=float(submission["score"]),
+                    key=f"score_{submission['submission_id']}",
+                )
+                corrected_feedback = st.text_area(
+                    "Corrected feedback",
+                    value=submission["feedback"],
+                    key=f"feedback_{submission['submission_id']}",
+                )
+                override = st.form_submit_button("Save grade correction")
+            if override:
+                result = post(
+                    f"/students/submissions/{submission['submission_id']}/override",
+                    {"score": corrected_score, "feedback": corrected_feedback},
+                )
+                if result:
+                    st.success("Grade correction saved and analytics recalculated.")
+                    st.rerun()

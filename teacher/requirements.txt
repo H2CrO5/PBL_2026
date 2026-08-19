@@ -10,6 +10,9 @@ sqlalchemy>=1.4.0
 bcrypt>=3.2.0
 python-multipart>=0.0.5
 
+# AWS
+boto3>=1.28.0
+
 # Charts
 plotly>=5.9.0
 
@@ -19,3 +22,6 @@ httpx>=0.24.0
 # Utilities
 pydantic>=1.10.0
 
+# Course material extraction
+pypdf>=5.0.0
+python-pptx>=1.0.0

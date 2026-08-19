@@ -2,14 +2,18 @@
 
 import httpx
 import streamlit as st
+from pathlib import Path
 
 from config import API_BASE_URL
+
+LOGO_PATH = Path(__file__).resolve().parents[3] / "assets" / "branding" / "classpilot-logo-light.png"
 
 
 def render_sidebar() -> str:
     """Render navigation and return selected page."""
     with st.sidebar:
-        st.title("🎓 Teacher Support")
+        st.image(str(LOGO_PATH), width="stretch")
+        st.caption("Teacher workspace")
 
         if st.session_state.get("token"):
             teacher = st.session_state.get("teacher", {})

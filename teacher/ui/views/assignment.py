@@ -62,6 +62,29 @@ def render():
                 st.markdown(f"**{check['name']}**")
                 st.caption(check["status"].upper())
                 st.markdown(check["detail"])
+        if st.button(
+            "Generate a grounded draft with Bedrock",
+            disabled=not bool(context["materials"]),
+            width="stretch",
+        ):
+            generated = post(
+                "/questions/generate",
+                {
+                    "course_id": summary["course_id"],
+                    "lecture_id": selected_lecture["id"],
+                    "target_concept": (
+                        context["weak_concepts"][0]
+                        if context["weak_concepts"] else selected_lecture["title"]
+                    ),
+                    "difficulty": "balanced",
+                    "points": 100,
+                    "max_attempts": 1,
+                },
+                timeout=120.0,
+            )
+            if generated:
+                st.success("Bedrock draft saved for review. It is not published yet.")
+                st.rerun()
 
     with st.form("create_question_seed"):
         st.subheader("Add Question Seed")
@@ -76,6 +99,11 @@ def render():
             "Rubric",
             value="Correctly identifies inputs and outputs\nHandles the edge case\nExplains the reasoning clearly",
             height=100,
+        )
+        points_col, attempts_col = st.columns(2)
+        points = points_col.number_input("Points", min_value=1, max_value=1000, value=100)
+        max_attempts = attempts_col.number_input(
+            "Maximum attempts", min_value=1, max_value=10, value=1
         )
         control_col1, control_col2, control_col3 = st.columns(3)
         assessment_scope = control_col1.selectbox("Assessment scope", ["practice_only", "formative_checkpoint", "exam_relevant"], index=1)
@@ -99,6 +127,8 @@ def render():
                 "question_text": question_text,
                 "expected_answer": expected_answer,
                 "rubric": rubric,
+                "points": points,
+                "max_attempts": max_attempts,
                 "notes": _control_notes(assessment_scope, variation_policy, teacher_priority, notes),
             })
             if result:
@@ -149,6 +179,8 @@ def render():
                         "question_text": candidate["question_text"],
                         "expected_answer": candidate["expected_answer"],
                         "rubric": candidate["rubric"],
+                        "points": 100,
+                        "max_attempts": 1,
                         "notes": candidate["notes"],
                     })
                     if saved:
@@ -164,3 +196,18 @@ def render():
     for seed in lecture_seeds:
         with st.container(border=True):
             _show_seed(seed)
+            st.caption(
+                f"Points: {seed.get('points', 100):.0f} | "
+                f"Maximum attempts: {seed.get('max_attempts', 1)}"
+            )
+            if st.button(
+                "Publish to Student app",
+                key=f"publish_seed_{seed['id']}",
+                width="stretch",
+            ):
+                result = post(f"/questions/{seed['id']}/publish", {})
+                if result:
+                    st.success(
+                        f"Published for {result['created_for_students']} student(s); "
+                        f"already present for {result['already_present']}."
+                    )

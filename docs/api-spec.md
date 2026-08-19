@@ -1,6 +1,7 @@
 # API Specification
 
-Status: reverse-engineered from the current independent prototypes, plus the future shared-backend mapping. Reflects code as of commit `337bc65`.
+Status: reflects the implemented ClassPilot service boundary. See
+`shared-integration.md` for metric and security rules.
 
 Two FastAPI services run independently today:
 
@@ -70,10 +71,14 @@ Read-only DB inspection: `/admin/db/students`, `/db/lectures`, `/db/assignments`
 
 | Method | Path | Auth | Response |
 |---|---|---|---|
-| GET | `/integrations/teacher/analytics` | `X-Integration-Token` | `TeacherAnalyticsFeed` |
+| GET | `/integrations/teacher/analytics?external_course_id=...` | `X-Integration-Token` | `TeacherAnalyticsFeed` |
+| POST | `/integrations/teacher/courses/sync` | `X-Integration-Token` | course/enrollment sync |
+| POST | `/integrations/teacher/assignments/publish` | `X-Integration-Token` | idempotent publication |
+| POST | `/integrations/teacher/materials/sync` | `X-Integration-Token` | course RAG ingestion |
+| POST | `/integrations/teacher/submissions/{id}/override` | `X-Integration-Token` | grade correction |
 
-This read-only service boundary exposes real Student submission aggregates and
-recent submission evidence to the Teacher backend. It never exposes password
+This service boundary exposes real Student submission aggregates and tightly
+scoped Teacher writes. It never exposes password
 hashes, login sessions, or correct answers. Seed and synthetic submissions are
 excluded from live analytics. The shared `TEACHER_INTEGRATION_TOKEN` must be
 configured in both processes; when absent, the endpoint returns 503.
@@ -86,7 +91,9 @@ attempt counts and wrong rates.
 
 ## 2. Teacher Part API (port 8100)
 
-Today these endpoints read **deterministic seed data** and compute responses with rule-based Python. There is **no LLM** on the teacher side yet — see `evaluation-system-design.md` and `status-and-roadmap.md` for the plan to make analytics live.
+When integration is configured, these endpoints use real Student data. Teacher
+Bedrock narration and grounded draft generation are enabled with
+`TEACHER_USE_LLM=1`.
 
 ### Auth — `/auth`
 
@@ -103,6 +110,9 @@ Today these endpoints read **deterministic seed data** and compute responses wit
 | GET | `/materials/lectures` | yes | — | `[LectureResponse]` |
 | GET | `/materials` | yes | — | `[MaterialResponse]` |
 | POST | `/materials` | yes | `MaterialCreateRequest` | `MaterialResponse` |
+| POST | `/materials/upload` | yes | multipart PDF/PPTX/MD/TXT | `MaterialResponse` |
+| POST | `/materials/sync-all` | yes | — | ingestion summary |
+| POST | `/materials/{material_id}/sync` | yes | — | ingestion result |
 
 - `LectureResponse`: `{id, lecture_number, title, learning_objectives:[str]}`
 - `MaterialResponse`: `{id, course_id, lecture_id, lecture_title, title, material_type, ingestion_status, content_preview}`
@@ -116,6 +126,8 @@ Integration note: Student Part must not read teacher material files directly; th
 |---|---|---|---|---|
 | GET | `/questions` | yes | — | `[QuestionSeedResponse]` |
 | POST | `/questions` | yes | `QuestionSeedCreateRequest` | `QuestionSeedResponse` |
+| POST | `/questions/generate` | yes | `QuestionGenerateRequest` | grounded draft seed |
+| POST | `/questions/{seed_id}/publish` | yes | target/due date | publication result |
 | GET | `/questions/generation-context/{lecture_id}` | yes | — | `GenerationContextResponse` |
 
 - `QuestionSeedCreateRequest`: `{course_id, lecture_id, title, target_concept, seed_type("base"|"required"|"rubric_seed")="base", difficulty("supportive"|"balanced"|"challenging")="balanced", question_text, expected_answer, rubric:[str], notes?}`
@@ -142,6 +154,7 @@ Integration note: Student Part must not read teacher material files directly; th
 | Method | Path | Auth | Response |
 |---|---|---|---|
 | GET | `/students/insights` | yes | `[StudentInsightResponse]` |
+| POST | `/students/submissions/{id}/override` | yes | corrected score/feedback | corrected grade |
 
 `StudentInsightResponse`: `{id, student_code, name, average_score, completion_rate, strong_topics:[str], weak_topics:[str], recommended_action}`
 
@@ -166,7 +179,9 @@ Input (draft): `{course_id, lecture_id, student_id, material_ids:[int], question
 
 Output (draft): `{assignment_id, student_id, lecture_id, questions:[{question_id, source_seed_id, target_concept, difficulty, question_text, expected_answer, rubric:[str]}]}`
 
-This is where teacher `question_seeds` (constraints/anchors) meet student memory to produce personalized assignments. Not yet implemented.
+The local implementation now publishes reviewed Teacher seeds through
+`POST /integrations/teacher/assignments/publish`. The endpoint above remains the
+production single-service target.
 
 ### Endpoint convergence
 
@@ -204,4 +219,4 @@ Integration rules (from the plan and sync README):
 | Max tokens / temperature | 2048 / 0.7 | — |
 | Auth modes | Bearer token (`AWS_BEARER_TOKEN_BEDROCK`) or boto3 SigV4 | — |
 
-The teacher service does **not** call Bedrock yet; when it does, it should reuse the student `bedrock_client.py` pattern (see `evaluation-system-design.md`).
+Both services use the same Bedrock authentication and model environment contract.

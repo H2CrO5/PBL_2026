@@ -32,7 +32,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 def _analytics_records(db: DBSession, course: Course):
     try:
-        feed = student_data.fetch_feed()
+        feed = student_data.fetch_feed(course.external_key)
     except student_data.StudentDataUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

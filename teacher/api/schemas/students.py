@@ -14,7 +14,23 @@ class RecentSubmissionResponse(BaseModel):
     is_correct: bool
     score: float
     feedback: str
+    attempt_number: int = 1
+    grading_source: str = "auto"
+    missing_concepts: list[str] = Field(default_factory=list)
+    teacher_error_pattern: str | None = None
     submitted_at: datetime
+
+
+class GradeOverrideRequest(BaseModel):
+    score: float = Field(ge=0, le=100)
+    feedback: str = Field(min_length=1)
+
+
+class GradeOverrideResponse(BaseModel):
+    submission_id: int
+    score: float
+    feedback: str
+    grading_source: str
 
 
 class StudentInsightResponse(BaseModel):

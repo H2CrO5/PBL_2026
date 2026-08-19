@@ -2,8 +2,12 @@
 
 import json
 import unittest
+from unittest.mock import patch
+from io import BytesIO
 
 from services.student_data import teacher_records
+from services.assignment_generation import generate_draft
+from api.routers.materials import _extract_upload
 
 
 class StudentDataAdapterTest(unittest.TestCase):
@@ -35,6 +39,39 @@ class StudentDataAdapterTest(unittest.TestCase):
         self.assertIn("RAG citations", students[0].recommended_action)
         self.assertEqual(concepts[0].wrong_rate, 50.0)
         self.assertIsNotNone(generated_at)
+
+    @patch("services.assignment_generation.bedrock_client.invoke_json")
+    def test_grounded_assignment_generation_validates_result(self, invoke_json):
+        invoke_json.return_value = {
+            "title": "Grounding checkpoint",
+            "question_text": "Explain why evidence is required.",
+            "expected_answer": "Evidence connects a claim to course material.",
+            "rubric": ["Mentions evidence", "Explains the connection"],
+            "source_titles": ["Grounding notes"],
+        }
+        result = generate_draft(
+            "RAG grounding",
+            "balanced",
+            ["Explain grounding"],
+            [{"title": "Grounding notes", "content": "Claims need evidence."}],
+        )
+        self.assertEqual(result["title"], "Grounding checkpoint")
+        prompt = invoke_json.call_args.args[0]
+        self.assertIn("Claims need evidence", prompt)
+
+    def test_powerpoint_material_extraction_keeps_slide_locator(self):
+        from pptx import Presentation
+
+        presentation = Presentation()
+        slide = presentation.slides.add_slide(presentation.slide_layouts[1])
+        slide.shapes.title.text = "Grounding"
+        slide.placeholders[1].text = "Verify every cited claim."
+        buffer = BytesIO()
+        presentation.save(buffer)
+        text, material_type = _extract_upload("lecture.pptx", buffer.getvalue())
+        self.assertEqual(material_type, "slide")
+        self.assertIn("[Slide 1]", text)
+        self.assertIn("Verify every cited claim", text)
 
 
 if __name__ == "__main__":

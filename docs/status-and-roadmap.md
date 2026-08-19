@@ -1,6 +1,14 @@
 # Status and Roadmap
 
-Companion to `development-plan.md`. The plan describes the intended process; this document records **where the project actually is** and what to do next. Reflects the `setup/initial-environment` branch as of commit `337bc65`.
+> Update for the ClassPilot integration branch: course-scoped material RAG,
+> Teacher-to-Student assignment publication, real-submission analytics, bounded
+> retries, and auditable grade correction are now implemented. Sections below
+> describe the historical baseline. Remaining deployment work requires the
+> university AWS account, identity provider, and retention-policy decisions.
+
+Companion to `development-plan.md`. The plan describes the intended process;
+this document records the integrated ClassPilot branch and the remaining
+production-deployment decisions.
 
 Related documents:
 
@@ -18,11 +26,13 @@ Related documents:
 |---|---|---|
 | **Student** | Phase 3 (Student Part development) | **Working prototype with live LLM.** Login, adaptive assignments, LLM auto-grading, feedback, dashboard, history, and RAG TA bot all run against AWS Bedrock. |
 | **Teacher** | Phase 4 (in progress) | **Rich workflow UI + analytics, now with optional LLM narration.** Evidence view, teacher action list, seed candidates, backend readiness checks, and expanded lecture plans. Numeric facts stay rule-based; the qualitative narration (typical errors, recommended actions, lecture-plan prose) is LLM-generated when `TEACHER_USE_LLM=1`, reusing a teacher-side Bedrock client, with automatic fallback to the rule-based text. Scope is deliberately **post-slide**: structure completed materials, do not generate slides. |
-| **Shared backend** | Phase 2 (partial) | Not started as shared infrastructure. Two independent SQLite DBs and two FastAPI services. Assignment-generation contract exists only as a draft (`STUDENT_SYNC_README.md`). |
-| **Docs** | Phase 1 | Plan + sync README exist; `data-model.md` / `api-spec.md` now added. Architecture diagram and AWS collaboration doc still missing. |
-| **Evaluation** | Phase 6 in plan | **Not started.** Re-scoped here to run in parallel with Phases 2–3 (see §4). |
+| **Shared backend** | Phase 2 (local integration) | Stable course/material/assignment IDs and authenticated service APIs connect the two local databases. |
+| **Docs** | Phase 1 | API, model, integration, setup, safety, and production migration documents are present. |
+| **Evaluation** | Cross-cutting | Grading, generation, TA grounding, and analytics gates run offline and in CI. |
 
-Summary: the **student side is genuinely functional** with live LLM; the **teacher side is an increasingly sophisticated facade over seed data with no LLM**; and there is **no quality measurement** anywhere despite the student side already making real LLM calls.
+Summary: Student and Teacher are connected locally. Teacher materials feed
+course-scoped RAG, reviewed questions publish to Student, real submissions drive
+analytics, and grade corrections flow back with audit history.
 
 ---
 
@@ -34,11 +44,10 @@ Summary: the **student side is genuinely functional** with live LLM; the **teach
 
 ## 3. Gaps (ranked)
 
-1. **Teacher-side AI is unimplemented.** The teacher's core value — class understanding, misconception trends, evidence, lecture recommendations — is computed by hand-written rules over seed data. The workflow shape is well-developed, but no reasoning is LLM-driven. Target: implement in `teacher/services/` reusing the student `bedrock_client` pattern.
-2. **No evaluation / quality measurement.** The student side calls the LLM but nothing measures grading consistency, hallucination, or citation grounding. Without this, quality problems surface only after integration.
-3. **The core data flow is not wired.** "Student submissions → teacher analytics" is entirely mocked. Teacher analytics has no live source.
-4. **Schema divergence.** Student and teacher databases model "student" twice (`students` vs `student_profiles`), disagree on lecture scope, and use different difficulty vocabularies. See `data-model.md` conflicts C1–C7.
-5. **Missing infrastructure docs.** No architecture diagram, no `aws-collaboration.md` (referenced by the plan), no shared auth/DB decision.
+1. Deploy managed PostgreSQL, S3, Cognito/university SSO, KMS, backups, and alarms.
+2. Approve university retention and student-data governance policies.
+3. Calibrate live Bedrock quality gates with instructor-reviewed course examples.
+4. Replace the local service token with least-privilege production IAM/OAuth.
 
 ## 4. Revised roadmap — `eval/` as a parallel, cross-cutting subsystem
 

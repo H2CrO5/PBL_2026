@@ -246,6 +246,7 @@ def seed():
 
         course = Course(
             teacher_id=teacher.id,
+            external_key="course-generative-ai-2026",
             title="Generative AI Systems for Education",
             term="Spring 2026",
         )
@@ -268,15 +269,17 @@ def seed():
             for material_data in lecture_data["materials"]:
                 source_path = BASE_DIR / "materials" / lecture_data["group_dir"] / material_data["file"]
                 content = source_path.read_text(encoding="utf-8")
-                db.add(Material(
+                material = Material(
+                    external_key=f"material-{lecture_data['number']}-{material_data['file']}",
                     course_id=course.id,
                     lecture_id=lecture.id,
                     title=material_data["title"],
                     material_type=material_data["type"],
                     source_path=str(source_path.relative_to(BASE_DIR)),
                     content=content,
-                    ingestion_status="ready",
-                ))
+                    ingestion_status="local_only",
+                )
+                db.add(material)
 
         for student_data in STUDENTS:
             db.add(StudentProfile(
