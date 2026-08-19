@@ -2,14 +2,19 @@
 
 import httpx
 import streamlit as st
+from pathlib import Path
 
 from config import API_BASE_URL
+from ui.i18n import t
+
+LOGO_PATH = Path(__file__).resolve().parents[3] / "assets" / "branding" / "classpilot-logo-light.png"
 
 
 def render_sidebar() -> str:
     """Render navigation and return selected page."""
     with st.sidebar:
-        st.title("🎓 Teacher Support")
+        st.image(str(LOGO_PATH), width="stretch")
+        st.caption(t("teacher_workspace"))
 
         if st.session_state.get("token"):
             teacher = st.session_state.get("teacher", {})
@@ -18,16 +23,16 @@ def render_sidebar() -> str:
             st.divider()
 
             pages = {
-                "Dashboard": "dashboard",
-                "Materials": "materials",
-                "Question Bank": "assignment",
-                "Analytics": "analytics",
-                "Students": "students",
+                t("dashboard"): "dashboard",
+                t("materials"): "materials",
+                t("question_bank"): "assignment",
+                t("analytics"): "analytics",
+                t("students"): "students",
             }
             label = st.radio("Navigation", list(pages.keys()), label_visibility="collapsed")
 
             st.divider()
-            if st.button("Logout", width="stretch"):
+            if st.button(t("logout"), width="stretch"):
                 try:
                     httpx.post(
                         f"{API_BASE_URL}/auth/logout",

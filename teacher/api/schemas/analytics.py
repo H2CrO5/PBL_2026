@@ -1,6 +1,6 @@
 """Analytics schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 
@@ -40,6 +40,7 @@ class DashboardSummary(BaseModel):
     teacher_actions: list[TeacherAction]
     data_source: str = "teacher-demo-data"
     data_updated_at: datetime | None = None
+    score_trend: list[dict] = Field(default_factory=list)
 
 
 class LecturePlanRequest(BaseModel):

@@ -12,7 +12,7 @@ import bcrypt
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from db.database import SessionLocal, create_tables
-from db.models import Assignment, ChatMessage, Lecture, Student, Submission
+from db.models import Assignment, ChatMessage, Course, Enrollment, Lecture, Student, Submission
 
 
 def _hash_password(password: str) -> str:
@@ -279,6 +279,7 @@ def seed():
 
         random.seed(42)
         now = datetime.utcnow()
+        legacy_course = db.query(Course).filter(Course.external_key == "legacy-course").one()
 
         # ── Create lectures ───────────────────────────────────────────
         lecture_objs = {}  # topic -> Lecture
@@ -287,6 +288,8 @@ def seed():
             deadline = lecture_date + timedelta(days=7)
 
             lecture = Lecture(
+                course_id=legacy_course.id,
+                external_key=f"legacy-lecture-{lec['lecture_number']}",
                 lecture_number=lec["lecture_number"],
                 title=lec["title"],
                 description=lec["description"],
@@ -313,6 +316,8 @@ def seed():
             db.add(student)
             student_objs.append((student, s))
         db.flush()
+        for student, _ in student_objs:
+            db.add(Enrollment(course_id=legacy_course.id, student_id=student.id))
 
         # ── Create assignments per lecture ────────────────────────────
         for student, profile in student_objs:
@@ -331,6 +336,7 @@ def seed():
                     created = lecture.lecture_date + timedelta(hours=random.randint(1, 24))
 
                     assignment = Assignment(
+                        course_id=legacy_course.id,
                         student_id=student.id,
                         lecture_id=lecture.id,
                         topic=topic,

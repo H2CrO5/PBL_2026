@@ -2,6 +2,8 @@
 
 import plotly.graph_objects as go
 
+from ui.i18n import t
+
 
 def score_trend_chart(daily_scores: list[dict]) -> go.Figure:
     """Create a line chart of daily score trends."""
@@ -15,17 +17,17 @@ def score_trend_chart(daily_scores: list[dict]) -> go.Figure:
             x=dates,
             y=scores,
             mode="lines+markers",
-            name="平均スコア",
+            name=t("average_score"),
             line=dict(color="#4F46E5", width=2),
             marker=dict(size=8),
-            text=[f"回答数: {c}" for c in counts],
-            hovertemplate="日付: %{x}<br>平均スコア: %{y:.1f}<br>%{text}<extra></extra>",
+            text=[f"{t('responses')}: {c}" for c in counts],
+            hovertemplate=f"{t('date')}: %{{x}}<br>{t('average_score')}: %{{y:.1f}}<br>%{{text}}<extra></extra>",
         )
     )
     fig.update_layout(
-        title="日別スコア推移",
-        xaxis_title="日付",
-        yaxis_title="スコア",
+        title=t("score_trend"),
+        xaxis_title=t("date"),
+        yaxis_title=t("score_label"),
         yaxis=dict(range=[0, 105]),
         height=350,
         margin=dict(l=40, r=20, t=50, b=40),
@@ -49,14 +51,14 @@ def topic_bar_chart(topic_trends: list[dict]) -> go.Figure:
             marker_color=colors,
             text=[f"{s:.1f}" for s in scores],
             textposition="outside",
-            hovertemplate="トピック: %{x}<br>平均スコア: %{y:.1f}<br>回答数: %{customdata}<extra></extra>",
+            hovertemplate=f"{t('topic')}: %{{x}}<br>{t('average_score')}: %{{y:.1f}}<br>{t('responses')}: %{{customdata}}<extra></extra>",
             customdata=counts,
         )
     )
     fig.update_layout(
-        title="トピック別スコア",
-        xaxis_title="トピック",
-        yaxis_title="平均スコア",
+        title=t("topic_scores"),
+        xaxis_title=t("topic"),
+        yaxis_title=t("average_score"),
         yaxis=dict(range=[0, 105]),
         height=350,
         margin=dict(l=40, r=20, t=50, b=40),
@@ -71,7 +73,7 @@ def accuracy_gauge(accuracy: float) -> go.Figure:
             mode="gauge+number+delta",
             value=accuracy,
             number={"suffix": "%"},
-            title={"text": "正答率"},
+            title={"text": t("accuracy")},
             gauge={
                 "axis": {"range": [0, 100]},
                 "bar": {"color": "#4F46E5"},

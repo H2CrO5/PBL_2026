@@ -1,6 +1,14 @@
 # Status and Roadmap
 
-Companion to `development-plan.md`. The plan describes the intended process; this document records **where the project actually is** and what to do next. Reflects the `setup/initial-environment` branch as of commit `337bc65`.
+> Update for the ClassPilot integration branch: course-scoped material RAG,
+> Teacher-to-Student assignment publication, real-submission analytics, bounded
+> retries, and auditable grade correction are now implemented. Sections below
+> describe the historical baseline. Remaining deployment work requires the
+> university AWS account, identity provider, and retention-policy decisions.
+
+Companion to `development-plan.md`. The plan describes the intended process;
+this document records the integrated ClassPilot branch and the remaining
+production-deployment decisions.
 
 Related documents:
 
@@ -17,28 +25,29 @@ Related documents:
 | Part | Plan phase | Real status |
 |---|---|---|
 | **Student** | Phase 3 (Student Part development) | **Working prototype with live LLM.** Login, adaptive assignments, LLM auto-grading, feedback, dashboard, history, and RAG TA bot all run against AWS Bedrock. |
-| **Teacher** | Phase 4 (in progress) | **Rich workflow UI + analytics, now with optional LLM narration.** Evidence view, teacher action list, seed candidates, backend readiness checks, and expanded lecture plans. Numeric facts stay rule-based; the qualitative narration (typical errors, recommended actions, lecture-plan prose) is LLM-generated when `TEACHER_USE_LLM=1`, reusing a teacher-side Bedrock client, with automatic fallback to the rule-based text. Scope is deliberately **post-slide**: structure completed materials, do not generate slides. |
-| **Shared backend** | Phase 2 (partial) | Not started as shared infrastructure. Two independent SQLite DBs and two FastAPI services. Assignment-generation contract exists only as a draft (`STUDENT_SYNC_README.md`). |
-| **Docs** | Phase 1 | Plan + sync README exist; `data-model.md` / `api-spec.md` now added. Architecture diagram and AWS collaboration doc still missing. |
-| **Evaluation** | Phase 6 in plan | **Not started.** Re-scoped here to run in parallel with Phases 2–3 (see §4). |
+| **Teacher** | Phase 4 (local MVP complete) | **Grounded assignment workflow + real analytics.** Material upload/sync, targeted assignment generation/publication, assignment-level and student analytics, TA-question context, and lecture plans are available in JA/EN. Numeric facts come from stored Student grading results. |
+| **Shared backend** | Phase 2 (local integration) | Stable course/material/assignment IDs and authenticated service APIs connect the two local databases. |
+| **Docs** | Phase 1 | API, model, integration, setup, safety, and production migration documents are present. |
+| **Evaluation** | Cross-cutting | Grading, generation, TA grounding, and analytics gates run offline and in CI. |
 
-Summary: the **student side is genuinely functional** with live LLM; the **teacher side is an increasingly sophisticated facade over seed data with no LLM**; and there is **no quality measurement** anywhere despite the student side already making real LLM calls.
+Summary: Student and Teacher are connected locally. Teacher materials feed
+course-scoped RAG, reviewed questions publish to Student, real submissions drive
+analytics, and grade corrections flow back with audit history.
 
 ---
 
 ## 2. What is done
 
 - **Student**: real Bedrock client with dual auth (Bearer / SigV4), LLM grading (`GRADING_PROMPT` → `invoke_json`), TA bot RAG (FAISS + Titan embeddings + Bedrock), student memory (`llm/memory.py`), Streamlit UI with i18n (JA/EN), SQLite + seed data, dashboard charts.
-- **Teacher**: FastAPI service with auth, materials, question seeds (+ local candidates), generation-context preview with readiness checks, analytics dashboard with teacher action list, evidence view, expanded lecture plan, per-student insights; Streamlit UI; seeded courses/lectures/materials/metrics; smoke-test checklist; teacher→student sync contract draft.
-- **Shared**: development plan, and now data model + API spec documents.
+- **Teacher**: FastAPI service with auth, PDF/PPTX/MD/TXT materials, optional S3 original-file storage, grounded question generation, targeted publication, assignment/class/student analytics, lecture planning and JA/EN Streamlit UI. Demo analytics require explicit `TEACHER_DEMO_MODE=1`; configured integrations fail visibly instead of silently substituting mock data.
+- **Shared**: authenticated service bridge, stable external IDs, shared-compatible endpoint aliases, course-scoped RAG sync, real-submission analytics and current API/data documentation.
 
 ## 3. Gaps (ranked)
 
-1. **Teacher-side AI is unimplemented.** The teacher's core value — class understanding, misconception trends, evidence, lecture recommendations — is computed by hand-written rules over seed data. The workflow shape is well-developed, but no reasoning is LLM-driven. Target: implement in `teacher/services/` reusing the student `bedrock_client` pattern.
-2. **No evaluation / quality measurement.** The student side calls the LLM but nothing measures grading consistency, hallucination, or citation grounding. Without this, quality problems surface only after integration.
-3. **The core data flow is not wired.** "Student submissions → teacher analytics" is entirely mocked. Teacher analytics has no live source.
-4. **Schema divergence.** Student and teacher databases model "student" twice (`students` vs `student_profiles`), disagree on lecture scope, and use different difficulty vocabularies. See `data-model.md` conflicts C1–C7.
-5. **Missing infrastructure docs.** No architecture diagram, no `aws-collaboration.md` (referenced by the plan), no shared auth/DB decision.
+1. Deploy managed PostgreSQL, S3, Cognito/university SSO, KMS, backups, and alarms.
+2. Approve university retention and student-data governance policies.
+3. Calibrate live Bedrock quality gates with instructor-reviewed course examples.
+4. Replace the local service token with least-privilege production IAM/OAuth.
 
 ## 4. Revised roadmap — `eval/` as a parallel, cross-cutting subsystem
 
@@ -71,11 +80,11 @@ The original plan places LLM evaluation in Phase 6 (the end). We **promote it to
 - [ ] Shared: agree the concept taxonomy (C5, now aligned in the eval feed) and a single difficulty enum (C7) so student and teacher vocabularies unify.
 - [ ] Docs: author `aws-collaboration.md` and an architecture diagram (Phase 1 leftovers).
 
-## 5. Definition of "integration-ready"
+## 5. Local MVP completion and production boundary
 
-- One `users` table with role-based auth (`data-model.md` §4).
-- Teacher analytics computed from real `submissions`, not seeds.
-- Teacher analytics/plan produced by LLM, not rule-based strings.
-- Shared assignment generation (`POST /backend/assignments/generate`) honoring teacher `required` seeds.
-- All LLM subsystems (grading, generation, analytics, TA bot) pass their `eval/` threshold gates.
-- Shared RAG fed by teacher `materials`.
+- [x] Teacher analytics computed from real `submissions`, excluding seed/synthetic rows.
+- [x] Shared-compatible assignment, submission, memory, history, chat, material and analytics routes.
+- [x] Grounded assignment generation and grading through Bedrock backend services.
+- [x] Shared RAG fed by Teacher materials and used by Student grading/TA Bot.
+- [x] Grading, generation, analytics and TA Bot evaluation gates.
+- [ ] Production-only: one role-based identity provider/user store, managed PostgreSQL, configured S3 bucket, least-privilege IAM/OAuth, backup/retention policy and monitoring.

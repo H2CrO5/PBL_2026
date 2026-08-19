@@ -6,6 +6,7 @@ from collections import defaultdict
 from sqlalchemy.orm import Session as DBSession
 
 from db.models import Assignment, Student, Submission
+from services.progress import latest_attempts
 
 
 def build_student_memory(db: DBSession, student: Student) -> dict:
@@ -22,13 +23,13 @@ def build_student_memory(db: DBSession, student: Student) -> dict:
             - recent_questions: list[str]      (last 10 question texts)
     """
     # Fetch all submissions with their assignments
-    submissions = (
+    submissions = latest_attempts((
         db.query(Submission)
         .join(Assignment, Submission.assignment_id == Assignment.id)
         .filter(Submission.student_id == student.id)
         .order_by(Submission.submitted_at.desc())
         .all()
-    )
+    ))
 
     # Compute topic-level scores
     topic_scores_raw: dict[str, list[float]] = defaultdict(list)

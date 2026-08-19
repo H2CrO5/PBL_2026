@@ -9,19 +9,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from config import API_BASE_URL
 from ui.i18n import t
 
+LOGO_PATH = Path(__file__).resolve().parents[3] / "assets" / "branding" / "classpilot-logo-light.png"
+
 
 def render_sidebar():
     """Render the sidebar and return the selected page key."""
     with st.sidebar:
-        st.title(f"📚 {t('app_title')}")
+        st.image(str(LOGO_PATH), width="stretch")
+        st.caption(f"Student · {t('app_title')}")
 
         if "token" in st.session_state and st.session_state.token:
             student = st.session_state.get("student", {})
             st.markdown(f"**{student.get('name', '')}** ({student.get('student_code', '')})")
             st.divider()
 
-            page_keys = ["assignments", "ta_bot"]
-            page_labels = [t("page_assignments"), t("page_ta_bot")]
+            page_keys = ["dashboard", "assignments", "ta_bot"]
+            page_labels = [
+                t("page_dashboard"),
+                t("page_assignments"),
+                t("page_ta_bot"),
+            ]
 
             selected_label = st.radio(
                 t("page_label"),
