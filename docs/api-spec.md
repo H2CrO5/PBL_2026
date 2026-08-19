@@ -66,6 +66,22 @@ Conventions: all bodies are JSON. Types below use JSON/OpenAPI naming. `?` marks
 
 Read-only DB inspection: `/admin/db/students`, `/db/lectures`, `/db/assignments`, `/db/submissions`, `/db/chat_messages`, `/db/stats`. Not part of the product contract; likely removed or role-gated at integration.
 
+### Teacher integration — `/integrations/teacher`
+
+| Method | Path | Auth | Response |
+|---|---|---|---|
+| GET | `/integrations/teacher/analytics` | `X-Integration-Token` | `TeacherAnalyticsFeed` |
+
+This read-only service boundary exposes real Student submission aggregates and
+recent submission evidence to the Teacher backend. It never exposes password
+hashes, login sessions, or correct answers. Seed and synthetic submissions are
+excluded from live analytics. The shared `TEACHER_INTEGRATION_TOKEN` must be
+configured in both processes; when absent, the endpoint returns 503.
+
+`TeacherAnalyticsFeed` contains `data_source`, `generated_at`, per-student
+average/completion/weak/strong topics and recent submissions, plus per-topic
+attempt counts and wrong rates.
+
 ---
 
 ## 2. Teacher Part API (port 8100)
@@ -116,6 +132,8 @@ Integration note: Student Part must not read teacher material files directly; th
 | POST | `/analytics/lecture-plan` | yes | `{course_id, question_seed_id?}` | `LecturePlanResponse` |
 
 - `DashboardSummary`: `{course_id, course_title, total_students, average_score, completion_rate, weak_concepts:[{concept, wrong_rate, misconception, recommended_focus}], question_seed_count, required_question_count, teacher_actions:[{priority, title, reason, next_step}]}`
+- The implemented dashboard also returns `data_source` and `data_updated_at` so
+  the UI clearly distinguishes real Student submissions from Teacher demo data.
 - `EvidenceItem`: `{concept, confidence, evidence_status, affected_students:[str], related_question_seeds:[str], typical_errors:[str], recommended_action}` — evidence-backed weak-concept view.
 - `LecturePlanResponse`: `{weakest_concepts:[str], common_misconceptions:[str], recommended_focus:[str], suggested_activity, opening_activity, review_sequence:[str], in_class_check, follow_up_actions:[str], recommended_seed_titles:[str]}` — currently **rule-generated strings**; target is LLM-generated.
 
@@ -126,6 +144,9 @@ Integration note: Student Part must not read teacher material files directly; th
 | GET | `/students/insights` | yes | `[StudentInsightResponse]` |
 
 `StudentInsightResponse`: `{id, student_code, name, average_score, completion_rate, strong_topics:[str], weak_topics:[str], recommended_action}`
+
+When live integration is configured, student insights also include up to ten
+recent real submissions with answer text, score, feedback, and timestamp.
 
 ### Admin — `/admin/db/stats` (dev only).
 

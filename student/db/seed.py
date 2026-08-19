@@ -357,6 +357,7 @@ def seed():
                             is_correct=is_correct,
                             score=score,
                             feedback=feedback,
+                            source="seed",
                             submitted_at=created + timedelta(
                                 hours=random.randint(1, 48),
                                 minutes=random.randint(0, 59),

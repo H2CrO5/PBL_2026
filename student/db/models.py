@@ -81,6 +81,7 @@ class Submission(Base):
     is_correct = Column(Boolean, nullable=False)
     score = Column(Float, nullable=False)
     feedback = Column(Text, nullable=False)
+    source = Column(Text, nullable=False, default="real")  # real / seed / synthetic
     submitted_at = Column(DateTime, default=datetime.utcnow)
 
     assignment = relationship("Assignment", back_populates="submissions")

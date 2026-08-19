@@ -1,6 +1,7 @@
 """Analytics schemas."""
 
 from pydantic import BaseModel
+from datetime import datetime
 
 
 class WeakConcept(BaseModel):
@@ -37,6 +38,8 @@ class DashboardSummary(BaseModel):
     question_seed_count: int
     required_question_count: int
     teacher_actions: list[TeacherAction]
+    data_source: str = "teacher-demo-data"
+    data_updated_at: datetime | None = None
 
 
 class LecturePlanRequest(BaseModel):

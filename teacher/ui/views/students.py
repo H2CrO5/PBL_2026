@@ -12,6 +12,12 @@ def render():
     if not insights:
         st.info("No student insights available.")
         return
+    source_label = (
+        "Live Student submissions"
+        if insights[0].get("data_source") == "student-real-submissions"
+        else "Demo analytics data"
+    )
+    st.caption(f"Data source: {source_label}")
 
     rows = [
         {
@@ -37,3 +43,17 @@ def render():
     for topic in item["weak_topics"]:
         st.markdown(f"- {topic}")
     st.info(item["recommended_action"])
+
+    recent = item.get("recent_submissions", [])
+    st.subheader("Recent Submissions")
+    if not recent:
+        st.info("No real submissions yet.")
+    for submission in recent:
+        icon = "✅" if submission["is_correct"] else "❌"
+        with st.expander(
+            f"{icon} {submission['topic']} — {submission['score']:.0f}/100"
+        ):
+            st.markdown(f"**Question:** {submission['question_text']}")
+            st.markdown(f"**Student answer:** {submission['answer_text']}")
+            st.markdown(f"**Feedback:** {submission['feedback']}")
+            st.caption(f"Submitted: {submission['submitted_at']}")

@@ -271,8 +271,12 @@ def submit_answer(
         is_correct=is_correct,
         score=score,
         feedback=feedback,
+        source="real",
     )
     db.add(submission)
+    # SessionLocal uses autoflush=False. Flush here so the current answer is
+    # included in the memory recalculation below.
+    db.flush()
 
     # Update student stats
     student.total_answered += 1
@@ -280,7 +284,6 @@ def submit_answer(
         student.total_correct += 1
     # Recalculate overall score as running average
     all_scores = [s.score for s in db.query(Submission).filter(Submission.student_id == student.id).all()]
-    all_scores.append(score)
     student.overall_score = round(sum(all_scores) / len(all_scores), 1)
 
     # Update weak/strong topics

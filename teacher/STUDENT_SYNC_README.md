@@ -11,6 +11,34 @@ The project is currently split into two parallel modules:
 
 During this stage, each part can run with its own local database and mock/demo data. After both modules are stable, the shared backend will replace local data stores and unify authentication, RAG, LLM calls, analytics, and assignment generation.
 
+## Implemented Live Submission Bridge
+
+The first safe integration increment is now available without sharing SQLite
+files directly:
+
+```text
+Student real submission
+-> Student GET /integrations/teacher/analytics
+-> Teacher analytics/student endpoints
+-> existing Teacher Dashboard, Analytics, and Students views
+```
+
+Configure both applications with the same `TEACHER_INTEGRATION_TOKEN` and set
+`STUDENT_API_BASE_URL` for the Teacher process. The endpoint is read-only,
+service-authenticated, excludes seed/synthetic submissions, and does not expose
+credentials or correct answers. If integration is configured but unavailable,
+Teacher returns 503 instead of silently displaying demo values.
+
+The current Student prototype still represents one implicit course because its
+lecture model has no `course_id`. The bridge therefore maps that one Student
+course to the authenticated teacher's first course. Adding shared course and
+enrollment IDs remains the next shared-backend migration step.
+
+Copy `.env.example` to `.env`; both `student/run.sh` and `teacher/run.sh` load
+the shared root `.env` automatically. This bridge is intentionally compatible
+with the future shared-backend contract and can later move behind that service
+without rewriting either Streamlit UI.
+
 ## Product Scope Boundary
 
 The current project starts after instructors have already finished their lecture slides and teaching materials.

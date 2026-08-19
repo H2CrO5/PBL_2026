@@ -39,3 +39,7 @@ API_PORT = 8000
 # ── Streamlit ──────────────────────────────────────────
 STREAMLIT_PORT = 8501
 API_BASE_URL = os.getenv("API_BASE_URL", f"http://localhost:{API_PORT}")
+
+# Service-to-service authentication for the read-only Teacher analytics feed.
+# Keep this value in the environment; never commit a real token.
+TEACHER_INTEGRATION_TOKEN = os.getenv("TEACHER_INTEGRATION_TOKEN", "")

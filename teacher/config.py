@@ -31,3 +31,9 @@ LLM_TEMPERATURE = 0.3
 # narration, so the teacher UI always renders something.
 USE_LLM = os.getenv("TEACHER_USE_LLM", "").strip().lower() not in ("", "0", "false", "no")
 
+# Optional live connection to the Student backend. When the token is set, the
+# Teacher API uses real Student submissions and fails visibly if that service is
+# unavailable instead of silently showing demo analytics.
+STUDENT_API_BASE_URL = os.getenv("STUDENT_API_BASE_URL", "http://localhost:8000").rstrip("/")
+STUDENT_INTEGRATION_TOKEN = os.getenv("TEACHER_INTEGRATION_TOKEN", "")
+STUDENT_API_TIMEOUT = float(os.getenv("STUDENT_API_TIMEOUT", "5"))

@@ -10,6 +10,12 @@ def render():
     summary = get("/analytics/dashboard")
     if not summary:
         return
+    source_label = (
+        "Live Student submissions"
+        if summary.get("data_source") == "student-real-submissions"
+        else "Demo analytics data (Student integration is not configured)"
+    )
+    st.caption(f"Data source: {source_label}")
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Average Score", f"{summary['average_score']:.1f}")

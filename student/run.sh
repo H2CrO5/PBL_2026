@@ -5,6 +5,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Load shared local configuration when present. The real .env is gitignored.
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/../.env"
+    set +a
+fi
+
 echo "=== Student Education System ==="
 echo "Starting FastAPI on port 8000 and Streamlit on port 8501..."
 echo ""

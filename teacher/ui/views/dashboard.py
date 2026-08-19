@@ -14,6 +14,12 @@ def render():
         return
 
     st.caption(summary["course_title"])
+    source_label = (
+        "Live Student submissions"
+        if summary.get("data_source") == "student-real-submissions"
+        else "Demo analytics data (Student integration is not configured)"
+    )
+    st.caption(f"Data source: {source_label}")
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Students", summary["total_students"])

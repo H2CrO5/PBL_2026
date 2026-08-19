@@ -78,6 +78,10 @@ Note: assignments are **per student** (personalized/adaptive), not shared questi
 | feedback | text | LLM-generated |
 | submitted_at | datetime | |
 
+`source` is added to distinguish `real`, `seed`, and `synthetic` submissions.
+Teacher live analytics include only `source = "real"`. Existing SQLite files
+are migrated on startup with old rows conservatively classified as `seed`.
+
 ### `chat_messages`
 
 | Column | Type | Notes |
@@ -170,6 +174,12 @@ Same shape as student `sessions`, but FK is `teacher_id → teachers.id`.
 | updated_at | datetime | |
 
 Denormalized analytics mirror of student data. Primary integration seam with the Student Part.
+
+For the first live-integration increment, this table remains available for
+standalone Teacher demos. When `TEACHER_INTEGRATION_TOKEN` is configured,
+Teacher APIs read the authenticated Student analytics feed instead and label the
+response `student-real-submissions`; they do not silently fall back to this demo
+table if the Student service is unavailable.
 
 ### `concept_metrics`
 
