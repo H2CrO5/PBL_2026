@@ -146,6 +146,7 @@ class PublishedAssignment(Base):
     published_at = Column(DateTime, default=datetime.utcnow)
 
     course = relationship("Course", back_populates="published_assignments")
+    question_seed = relationship("QuestionSeed")
 
 
 class AuditLog(Base):

@@ -25,7 +25,7 @@ Related documents:
 | Part | Plan phase | Real status |
 |---|---|---|
 | **Student** | Phase 3 (Student Part development) | **Working prototype with live LLM.** Login, adaptive assignments, LLM auto-grading, feedback, dashboard, history, and RAG TA bot all run against AWS Bedrock. |
-| **Teacher** | Phase 4 (in progress) | **Rich workflow UI + analytics, now with optional LLM narration.** Evidence view, teacher action list, seed candidates, backend readiness checks, and expanded lecture plans. Numeric facts stay rule-based; the qualitative narration (typical errors, recommended actions, lecture-plan prose) is LLM-generated when `TEACHER_USE_LLM=1`, reusing a teacher-side Bedrock client, with automatic fallback to the rule-based text. Scope is deliberately **post-slide**: structure completed materials, do not generate slides. |
+| **Teacher** | Phase 4 (local MVP complete) | **Grounded assignment workflow + real analytics.** Material upload/sync, targeted assignment generation/publication, assignment-level and student analytics, TA-question context, and lecture plans are available in JA/EN. Numeric facts come from stored Student grading results. |
 | **Shared backend** | Phase 2 (local integration) | Stable course/material/assignment IDs and authenticated service APIs connect the two local databases. |
 | **Docs** | Phase 1 | API, model, integration, setup, safety, and production migration documents are present. |
 | **Evaluation** | Cross-cutting | Grading, generation, TA grounding, and analytics gates run offline and in CI. |
@@ -39,8 +39,8 @@ analytics, and grade corrections flow back with audit history.
 ## 2. What is done
 
 - **Student**: real Bedrock client with dual auth (Bearer / SigV4), LLM grading (`GRADING_PROMPT` → `invoke_json`), TA bot RAG (FAISS + Titan embeddings + Bedrock), student memory (`llm/memory.py`), Streamlit UI with i18n (JA/EN), SQLite + seed data, dashboard charts.
-- **Teacher**: FastAPI service with auth, materials, question seeds (+ local candidates), generation-context preview with readiness checks, analytics dashboard with teacher action list, evidence view, expanded lecture plan, per-student insights; Streamlit UI; seeded courses/lectures/materials/metrics; smoke-test checklist; teacher→student sync contract draft.
-- **Shared**: development plan, and now data model + API spec documents.
+- **Teacher**: FastAPI service with auth, PDF/PPTX/MD/TXT materials, optional S3 original-file storage, grounded question generation, targeted publication, assignment/class/student analytics, lecture planning and JA/EN Streamlit UI. Demo analytics require explicit `TEACHER_DEMO_MODE=1`; configured integrations fail visibly instead of silently substituting mock data.
+- **Shared**: authenticated service bridge, stable external IDs, shared-compatible endpoint aliases, course-scoped RAG sync, real-submission analytics and current API/data documentation.
 
 ## 3. Gaps (ranked)
 
@@ -80,11 +80,11 @@ The original plan places LLM evaluation in Phase 6 (the end). We **promote it to
 - [ ] Shared: agree the concept taxonomy (C5, now aligned in the eval feed) and a single difficulty enum (C7) so student and teacher vocabularies unify.
 - [ ] Docs: author `aws-collaboration.md` and an architecture diagram (Phase 1 leftovers).
 
-## 5. Definition of "integration-ready"
+## 5. Local MVP completion and production boundary
 
-- One `users` table with role-based auth (`data-model.md` §4).
-- Teacher analytics computed from real `submissions`, not seeds.
-- Teacher analytics/plan produced by LLM, not rule-based strings.
-- Shared assignment generation (`POST /backend/assignments/generate`) honoring teacher `required` seeds.
-- All LLM subsystems (grading, generation, analytics, TA bot) pass their `eval/` threshold gates.
-- Shared RAG fed by teacher `materials`.
+- [x] Teacher analytics computed from real `submissions`, excluding seed/synthetic rows.
+- [x] Shared-compatible assignment, submission, memory, history, chat, material and analytics routes.
+- [x] Grounded assignment generation and grading through Bedrock backend services.
+- [x] Shared RAG fed by Teacher materials and used by Student grading/TA Bot.
+- [x] Grading, generation, analytics and TA Bot evaluation gates.
+- [ ] Production-only: one role-based identity provider/user store, managed PostgreSQL, configured S3 bucket, least-privilege IAM/OAuth, backup/retention policy and monitoring.

@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import streamlit as st
 
-BRAND_ICON = Path(__file__).resolve().parents[2] / "assets" / "branding" / "classpilot-logo-light.png"
+BRAND_ICON = Path(__file__).resolve().parents[2] / "assets" / "branding" / "classpilot-favicon.png"
 
 st.set_page_config(
     page_title="ClassPilot Student",
@@ -28,12 +28,12 @@ a { color: var(--classpilot-teal) !important; }
 </style>
 """, unsafe_allow_html=True)
 
-from ui.components.sidebar import render_sidebar
-from ui.views import assignment, login, ta_chat
+from ui.components import sidebar
+from ui.views import assignment, dashboard, login, ta_chat
 
 # Streamlit keeps imported modules in memory between reruns. Reload view modules
 # so UI-only edits are reflected immediately during local development.
-for _view_module in (assignment, login, ta_chat):
+for _view_module in (sidebar, assignment, dashboard, login, ta_chat):
     reload(_view_module)
 
 # Initialize session state
@@ -59,10 +59,12 @@ with _lang_bar_right:
         st.rerun()
 
 # ── Page routing ───────────────────────────────────────────────────────
-page = render_sidebar()
+page = sidebar.render_sidebar()
 
 if page == "login":
     login.render()
+elif page == "dashboard":
+    dashboard.render()
 elif page == "assignments":
     assignment.render()
 elif page == "ta_bot":

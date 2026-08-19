@@ -100,6 +100,8 @@ class QuestionGenerateRequest(BaseModel):
     course_id: int
     lecture_id: int
     target_concept: str | None = None
+    assignment_goal: str = "Check conceptual understanding using course evidence"
+    target_student_codes: list[str] = Field(default_factory=list)
     difficulty: Literal["supportive", "balanced", "challenging"] = "balanced"
     points: float = Field(default=100, gt=0)
     max_attempts: int = Field(default=1, ge=1, le=10)

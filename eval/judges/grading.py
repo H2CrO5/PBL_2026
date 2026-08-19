@@ -24,6 +24,7 @@ def grade_answer(provider, case, answer_text, temperature: float = GRADING_TEMPE
             "Evaluate correctness, reasoning, and handling of the target concept.",
         ),
         student_answer=answer_text,
+        course_context=case.get("course_context", "No course material supplied."),
     )
     seed = f"{case['id']}|{answer_text}"
     return provider.complete_json(

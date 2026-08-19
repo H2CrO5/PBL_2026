@@ -40,7 +40,12 @@ def _analytics_records(db: DBSession, course: Course):
         ) from exc
     if feed is not None:
         students, concepts, generated_at = student_data.teacher_records(feed)
-        return students, concepts, "student-real-submissions", generated_at
+        return students, concepts, "student-real-submissions", generated_at, feed.get("score_trend", [])
+    if not config.DEMO_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Student integration is required. Set TEACHER_DEMO_MODE=1 only for an intentional demo.",
+        )
     students = db.query(StudentProfile).filter(StudentProfile.course_id == course.id).all()
     concepts = (
         db.query(ConceptMetric)
@@ -48,7 +53,7 @@ def _analytics_records(db: DBSession, course: Course):
         .order_by(ConceptMetric.wrong_rate.desc())
         .all()
     )
-    return students, concepts, "teacher-demo-data", None
+    return students, concepts, "teacher-demo-data", None, []
 
 
 def _load_list(raw_value: str) -> list[str]:
@@ -236,12 +241,16 @@ def _teacher_actions_from_facts(action_facts: list[dict]) -> list[TeacherAction]
 def dashboard(
     teacher: Teacher = Depends(get_current_teacher),
     db: DBSession = Depends(get_db),
+    course_id: int | None = None,
 ):
-    course = db.query(Course).filter(Course.teacher_id == teacher.id).first()
+    course_query = db.query(Course).filter(Course.teacher_id == teacher.id)
+    if course_id is not None:
+        course_query = course_query.filter(Course.id == course_id)
+    course = course_query.first()
     if not course:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    students, concepts, data_source, data_updated_at = _analytics_records(db, course)
+    students, concepts, data_source, data_updated_at, score_trend = _analytics_records(db, course)
     question_seeds = db.query(QuestionSeed).filter(QuestionSeed.course_id == course.id).all()
 
     scored_students = [
@@ -276,6 +285,7 @@ def dashboard(
         ),
         data_source=data_source,
         data_updated_at=data_updated_at,
+        score_trend=score_trend,
     )
 
 
@@ -288,7 +298,7 @@ def evidence(
     if not course:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    students, concepts, _, _ = _analytics_records(db, course)
+    students, concepts, _, _, _ = _analytics_records(db, course)
     question_seeds = db.query(QuestionSeed).filter(QuestionSeed.course_id == course.id).all()
 
     narration = None
@@ -312,7 +322,7 @@ def lecture_plan(
     if not course:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    _, all_concepts, _, _ = _analytics_records(db, course)
+    _, all_concepts, _, _, _ = _analytics_records(db, course)
     concepts = all_concepts[:3]
     if not concepts:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No analytics data found")

@@ -23,8 +23,12 @@ def render_sidebar():
             st.markdown(f"**{student.get('name', '')}** ({student.get('student_code', '')})")
             st.divider()
 
-            page_keys = ["assignments", "ta_bot"]
-            page_labels = [t("page_assignments"), t("page_ta_bot")]
+            page_keys = ["dashboard", "assignments", "ta_bot"]
+            page_labels = [
+                t("page_dashboard"),
+                t("page_assignments"),
+                t("page_ta_bot"),
+            ]
 
             selected_label = st.radio(
                 t("page_label"),

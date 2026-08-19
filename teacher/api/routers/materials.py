@@ -18,6 +18,7 @@ from api.schemas.materials import (
 from db.database import get_db
 from db.models import Course, Lecture, Material, Teacher
 from services import student_data
+from services import material_storage
 from config import MAX_MATERIAL_UPLOAD_BYTES
 
 router = APIRouter(prefix="/materials", tags=["materials"])
@@ -178,7 +179,11 @@ async def upload_material(
         lecture_id=lecture.id,
         title=title.strip() or Path(file.filename or "Material").stem,
         material_type=material_type,
-        source_path=file.filename,
+        source_path=material_storage.store_original(
+            file.filename or "material",
+            raw,
+            course.external_key or f"course-{course.id}",
+        ),
         content=extracted,
         ingestion_status="local_only",
     )

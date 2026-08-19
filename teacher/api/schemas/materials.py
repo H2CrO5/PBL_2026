@@ -39,6 +39,13 @@ class MaterialCreateRequest(BaseModel):
     content: str = Field(min_length=1)
 
 
+class CourseMaterialCreateRequest(BaseModel):
+    lecture_id: int
+    title: str = Field(min_length=1)
+    material_type: Literal["slide", "book", "note"]
+    content: str = Field(min_length=1)
+
+
 class LectureResponse(BaseModel):
     id: int
     lecture_number: int

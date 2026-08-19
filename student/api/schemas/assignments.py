@@ -57,6 +57,13 @@ class SubmitRequest(BaseModel):
     answer_text: str
 
 
+class SharedSubmissionRequest(BaseModel):
+    """Compatibility shape for POST /assignments/{id}/submissions."""
+
+    answer_text: str | None = None
+    answers: list[dict[str, str]] = Field(default_factory=list)
+
+
 class SubmissionResponse(BaseModel):
     id: int
     assignment_id: int

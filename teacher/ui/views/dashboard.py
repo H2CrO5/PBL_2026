@@ -38,6 +38,23 @@ def render():
                 st.markdown(action["reason"])
                 st.markdown(t("next_step", step=action["next_step"]))
 
+    if summary.get("score_trend"):
+        st.subheader(t("score_trend"))
+        trend = px.line(
+            summary["score_trend"],
+            x="date",
+            y="average_score",
+            markers=True,
+            labels={
+                "date": t("date"),
+                "average_score": t("average_score"),
+                "submissions": t("submissions"),
+            },
+            hover_data=["submissions"],
+        )
+        trend.update_yaxes(range=[0, 100])
+        st.plotly_chart(trend, width="stretch")
+
     weak = summary["weak_concepts"]
     if weak:
         st.subheader(t("weak_concepts"))

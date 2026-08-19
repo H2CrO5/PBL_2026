@@ -60,6 +60,9 @@ GRADING_PROMPT = """\
 ## 学生の回答
 {student_answer}
 
+## 関連する授業教材
+{course_context}
+
 ## 出力形式（JSON）
 {{
   "is_correct": true/false,

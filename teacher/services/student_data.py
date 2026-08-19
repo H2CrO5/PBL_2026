@@ -25,6 +25,7 @@ class LiveStudent:
     weak_topics: str
     recommended_action: str
     recent_submissions: list[dict]
+    chat_summary: list[str]
 
 
 @dataclass
@@ -84,6 +85,13 @@ def publish_assignment(payload: dict) -> dict:
     return _request("POST", "/integrations/teacher/assignments/publish", payload)
 
 
+def fetch_assignment_analytics(external_assignment_id: str) -> dict:
+    return _request(
+        "GET",
+        f"/integrations/teacher/assignments/{quote(external_assignment_id, safe='')}/analytics",
+    )
+
+
 def sync_material(payload: dict) -> dict:
     return _request(
         "POST",
@@ -137,6 +145,7 @@ def teacher_records(feed: dict) -> tuple[list[LiveStudent], list[LiveConcept], d
                 weak_topics, int(item.get("total_submissions", 0))
             ),
             recent_submissions=item.get("recent_submissions", []),
+            chat_summary=item.get("chat_summary", []),
         ))
 
     concepts = [

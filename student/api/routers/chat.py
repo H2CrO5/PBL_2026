@@ -119,6 +119,16 @@ def send_message(
     )
 
 
+@router.post("", response_model=ChatMessageResponse, include_in_schema=True)
+def shared_chat(
+    req: ChatMessageRequest,
+    student: Student = Depends(get_current_student),
+    db: DBSession = Depends(get_db),
+):
+    """Shared-contract alias for POST /chat."""
+    return send_message(req, student, db)
+
+
 @router.get("/history", response_model=ChatHistoryResponse)
 def get_history(
     limit: int = Query(default=50, ge=1, le=200),

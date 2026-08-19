@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session as DBSession
 from api.schemas.integration import (
     AssignmentPublishRequest,
     AssignmentPublishResponse,
+    AssignmentAnalyticsFeed,
     CourseSyncRequest,
     CourseSyncResponse,
     GradeOverrideRequest,
@@ -64,6 +65,44 @@ def teacher_analytics(
 ):
     """Return aggregate and recent real-submission data; never credentials."""
     return build_teacher_feed(db, external_course_id)
+
+
+@router.get(
+    "/assignments/{external_assignment_id}/analytics",
+    response_model=AssignmentAnalyticsFeed,
+    dependencies=[Depends(require_teacher_integration)],
+)
+def assignment_analytics(
+    external_assignment_id: str,
+    db: DBSession = Depends(get_db),
+):
+    assignments = db.query(Assignment).filter(
+        Assignment.external_key.like(f"{external_assignment_id}:%")
+    ).all()
+    assignment_ids = [item.id for item in assignments]
+    submissions = latest_attempts(
+        db.query(Submission).filter(Submission.assignment_id.in_(assignment_ids or [-1])).all()
+    )
+    scores = [item.score for item in submissions]
+    missing = []
+    patterns = []
+    for submission in submissions:
+        missing.extend(json.loads(submission.missing_concepts or "[]"))
+        if submission.teacher_error_pattern:
+            patterns.append(submission.teacher_error_pattern)
+    total_assigned = len(assignments)
+    total_submitted = len(submissions)
+    incorrect = sum(1 for item in submissions if not item.is_correct)
+    return AssignmentAnalyticsFeed(
+        external_assignment_id=external_assignment_id,
+        total_assigned=total_assigned,
+        total_submitted=total_submitted,
+        completion_rate=round(100 * total_submitted / total_assigned, 1) if total_assigned else 0,
+        average_score=round(sum(scores) / len(scores), 1) if scores else 0,
+        wrong_rate=round(100 * incorrect / total_submitted, 1) if total_submitted else 0,
+        missing_concepts=list(dict.fromkeys(missing)),
+        error_patterns=list(dict.fromkeys(patterns)),
+    )
 
 
 def _audit(db: DBSession, action: str, resource_type: str, resource_id: str, details: dict):

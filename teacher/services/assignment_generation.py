@@ -11,8 +11,12 @@ Do not invent claims that are absent from the supplied material."""
 PROMPT = """Create one short-answer draft for teacher review.
 
 Target concept: {target_concept}
+Assignment goal: {assignment_goal}
 Difficulty: {difficulty}
 Learning objectives: {objectives}
+
+Student mastery context:
+{student_context}
 
 Course material:
 {material_context}
@@ -33,6 +37,8 @@ def generate_draft(
     difficulty: str,
     objectives: list[str],
     materials: list[dict],
+    assignment_goal: str = "Check conceptual understanding using course evidence",
+    student_context: list[dict] | None = None,
 ) -> dict:
     if not materials:
         raise ValueError("At least one ready course material is required")
@@ -43,8 +49,10 @@ def generate_draft(
     result = bedrock_client.invoke_json(
         PROMPT.format(
             target_concept=target_concept,
+            assignment_goal=assignment_goal,
             difficulty=difficulty,
             objectives=json.dumps(objectives, ensure_ascii=False),
+            student_context=json.dumps(student_context or [], ensure_ascii=False),
             material_context=context,
         ),
         system=SYSTEM,

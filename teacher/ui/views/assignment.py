@@ -49,6 +49,11 @@ def render():
     selected_lecture = lecture_labels[selected_label]
 
     context = get(f"/questions/generation-context/{selected_lecture['id']}")
+    student_insights = get("/students/insights") or []
+    student_labels = {
+        f"{item['name']} ({item['student_code']})": item["student_code"]
+        for item in student_insights
+    }
     if context:
         col1, col2, col3 = st.columns(3)
         col1.metric(t("materials_count"), len(context["materials"]))
@@ -63,26 +68,57 @@ def render():
                 st.markdown(f"**{check['name']}**")
                 st.caption(check["status"].upper())
                 st.markdown(check["detail"])
+        generation_concept = st.text_input(
+            t("target_concept"),
+            value=context["weak_concepts"][0] if context["weak_concepts"] else selected_lecture["title"],
+            key=f"generation_concept_{selected_lecture['id']}",
+        )
+        generation_goal = st.text_input(
+            t("assignment_goal"),
+            value="Check conceptual understanding using course evidence",
+            key=f"generation_goal_{selected_lecture['id']}",
+        )
+        generation_difficulty = st.selectbox(
+            t("difficulty"),
+            ["supportive", "balanced", "challenging"],
+            index=1,
+            key=f"generation_difficulty_{selected_lecture['id']}",
+        )
+        generation_count = st.number_input(
+            t("number_questions"),
+            min_value=1,
+            max_value=5,
+            value=1,
+            key=f"generation_count_{selected_lecture['id']}",
+        )
+        generation_targets = st.multiselect(
+            t("target_students"),
+            list(student_labels),
+            key=f"generation_targets_{selected_lecture['id']}",
+        )
         if st.button(
             t("generate_bedrock"),
             disabled=not bool(context["materials"]),
             width="stretch",
         ):
-            generated = post(
-                "/questions/generate",
-                {
-                    "course_id": summary["course_id"],
-                    "lecture_id": selected_lecture["id"],
-                    "target_concept": (
-                        context["weak_concepts"][0]
-                        if context["weak_concepts"] else selected_lecture["title"]
-                    ),
-                    "difficulty": "balanced",
-                    "points": 100,
-                    "max_attempts": 1,
-                },
-                timeout=120.0,
-            )
+            generated = []
+            for _ in range(int(generation_count)):
+                result = post(
+                    "/assignments/generate",
+                    {
+                        "course_id": summary["course_id"],
+                        "lecture_id": selected_lecture["id"],
+                        "target_concept": generation_concept,
+                        "assignment_goal": generation_goal,
+                        "target_student_codes": [student_labels[label] for label in generation_targets],
+                        "difficulty": generation_difficulty,
+                        "points": 100,
+                        "max_attempts": 1,
+                    },
+                    timeout=120.0,
+                )
+                if result:
+                    generated.append(result)
             if generated:
                 st.success(t("draft_saved"))
                 st.rerun()
@@ -200,12 +236,20 @@ def render():
             st.caption(
                 t("seed_summary", points=seed.get("points", 100), attempts=seed.get("max_attempts", 1))
             )
+            publish_targets = st.multiselect(
+                t("target_students"),
+                list(student_labels),
+                key=f"publish_targets_{seed['id']}",
+            )
             if st.button(
                 t("publish_student"),
                 key=f"publish_seed_{seed['id']}",
                 width="stretch",
             ):
-                result = post(f"/questions/{seed['id']}/publish", {})
+                result = post(
+                    f"/assignments/{seed['id']}/publish",
+                    {"target_student_codes": [student_labels[label] for label in publish_targets]},
+                )
                 if result:
                     st.success(
                         t("published", created=result["created_for_students"], existing=result["already_present"])

@@ -152,14 +152,15 @@ def _render_question(assignment: dict):
     st.markdown(assignment["question_text"])
 
     choices = assignment.get("choices")
+    draft_key = f"assignment_draft_{assignment['id']}"
 
     with st.form("answer_form"):
         if choices and assignment["question_type"] == "multiple_choice":
-            answer = st.radio(t("select_answer"), choices)
+            answer = st.radio(t("select_answer"), choices, key=draft_key)
         elif assignment["question_type"] == "code":
-            answer = st.text_area(t("enter_code"), height=150)
+            answer = st.text_area(t("enter_code"), height=150, key=draft_key)
         else:
-            answer = st.text_area(t("enter_answer"), height=100)
+            answer = st.text_area(t("enter_answer"), height=100, key=draft_key)
 
         submitted = st.form_submit_button(t("submit_answer"), use_container_width=True)
 
@@ -174,6 +175,7 @@ def _render_question(assignment: dict):
             )
             if result:
                 st.session_state.submission_result = result
+                st.session_state.pop(draft_key, None)
                 me = _api_get("/auth/me")
                 if me:
                     st.session_state.student = me

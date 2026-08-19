@@ -5,6 +5,11 @@ is graded, stored, reflected in teacher analytics, and available for correction.
 Teacher materials can be indexed for course-scoped, citation-aware RAG through
 Amazon Bedrock.
 
+The local MVP keeps Student and Teacher as separate services and databases. An
+authenticated API bridge with stable course, assignment, student and submission
+IDs connects them; RAG supplies grounded course context but is not used as a
+transport for submission records.
+
 ## First-time setup
 
 ```bash
@@ -43,6 +48,10 @@ Request. `.env` is ignored by Git.
 4. The student answers it in the Student application.
 5. Open **Students** to see the real answer, feedback, error pattern, and score.
 6. If needed, save a grade correction; analytics are recalculated immediately.
+
+The Student **Dashboard** shows live score trends, accuracy, weak/strong topics
+and concept mastery evidence. Teacher **Analytics** includes class trends and
+assignment-level completion, missing concepts and grading error patterns.
 
 See [docs/shared-integration.md](docs/shared-integration.md) for contracts,
 metric definitions, security boundaries, and production migration notes.

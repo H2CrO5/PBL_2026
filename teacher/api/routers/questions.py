@@ -248,11 +248,27 @@ def generate_question_draft(
         ).order_by(ConceptMetric.wrong_rate.desc()).first()
         concept = metric.concept if metric else lecture.title
     try:
+        student_context = []
+        if student_data.integration_enabled():
+            feed = student_data.fetch_feed(course.external_key)
+            selected_codes = set(req.target_student_codes)
+            student_context = [
+                {
+                    "student_code": item["student_code"],
+                    "average_score": item.get("average_score", 0),
+                    "weak_topics": item.get("weak_topics", []),
+                    "strong_topics": item.get("strong_topics", []),
+                }
+                for item in feed.get("students", [])
+                if not selected_codes or item["student_code"] in selected_codes
+            ]
         draft = assignment_generation.generate_draft(
             concept,
             req.difficulty,
             json.loads(lecture.learning_objectives),
             [{"title": item.title, "content": item.content} for item in materials],
+            assignment_goal=req.assignment_goal,
+            student_context=student_context,
         )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Bedrock generation failed: {exc}") from exc
@@ -279,7 +295,11 @@ def generate_question_draft(
         action="assignment.generate",
         resource_type="lecture",
         resource_id=str(lecture.id),
-        details=json.dumps({"target_concept": concept}),
+        details=json.dumps({
+            "target_concept": concept,
+            "assignment_goal": req.assignment_goal,
+            "target_student_codes": req.target_student_codes,
+        }),
     ))
     db.commit()
     db.refresh(seed)

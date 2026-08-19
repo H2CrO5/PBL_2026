@@ -46,6 +46,13 @@ def render():
         st.markdown(f"- {topic}")
     st.info(item["recommended_action"])
 
+    st.subheader(t("recent_questions"))
+    if item.get("chat_summary"):
+        for question in item["chat_summary"]:
+            st.markdown(f"- {question}")
+    else:
+        st.info(t("no_questions"))
+
     recent = item.get("recent_submissions", [])
     st.subheader(t("recent_submissions"))
     if not recent:

@@ -21,12 +21,14 @@ from api.schemas.assignments import (
     LectureAssignments,
     LectureInfo,
     SubmissionResponse,
+    SharedSubmissionRequest,
     SubmitRequest,
 )
 from db.database import get_db
 from db.models import Assignment, Lecture, Student, Submission
 from llm import bedrock_client, prompts
 from llm.memory import build_student_memory
+from services.course_rag import retrieve_course
 
 router = APIRouter(prefix="/assignments", tags=["assignments"])
 
@@ -285,12 +287,26 @@ def submit_answer(
 
     # Grade with LLM. Persist an explicit failure state so the answer is never
     # lost and a failed provider call does not consume a permitted graded retry.
+    grading_chunks = (
+        retrieve_course(
+            db,
+            assignment.course_id,
+            f"{assignment.question_text}\n{req.answer_text}",
+            top_k=3,
+        )
+        if assignment.course_id else []
+    )
+    course_context = "\n\n".join(
+        f"[{item['source']} / {item.get('source_locator', 'chunk')}]\n{item['text']}"
+        for item in grading_chunks
+    ) or "No relevant synchronized course material was found."
     grade_prompt = prompts.GRADING_PROMPT.format(
         question_text=assignment.question_text,
         question_type=assignment.question_type,
         correct_answer=assignment.correct_answer,
         rubric=assignment.rubric,
         student_answer=req.answer_text,
+        course_context=course_context,
     )
     try:
         grade_result = bedrock_client.invoke_json(
@@ -362,6 +378,26 @@ def submit_answer(
         grading_source=submission.grading_source,
         missing_concepts=missing_concepts,
         submitted_at=submission.submitted_at,
+    )
+
+
+@router.post("/{assignment_id}/submissions", response_model=SubmissionResponse)
+def create_shared_submission(
+    assignment_id: int,
+    req: SharedSubmissionRequest,
+    student: Student = Depends(get_current_student),
+    db: DBSession = Depends(get_db),
+):
+    """Shared-contract alias; current assignments contain one question each."""
+    answer_text = req.answer_text
+    if not answer_text and req.answers:
+        answer_text = req.answers[0].get("answer_text") or req.answers[0].get("answer")
+    if not answer_text or not answer_text.strip():
+        raise HTTPException(status_code=422, detail="An answer is required")
+    return submit_answer(
+        SubmitRequest(assignment_id=assignment_id, answer_text=answer_text),
+        student,
+        db,
     )
 
 

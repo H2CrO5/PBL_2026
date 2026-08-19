@@ -24,6 +24,7 @@ class StudentDataAdapterTest(unittest.TestCase):
                 "strong_topics": [],
                 "weak_topics": ["RAG citations"],
                 "recent_submissions": [{"submission_id": 1}],
+                "chat_summary": ["Why does grounding matter?"],
             }],
             "topic_metrics": [{
                 "topic": "RAG citations",
@@ -37,6 +38,7 @@ class StudentDataAdapterTest(unittest.TestCase):
         self.assertEqual(students[0].total_submissions, 1)
         self.assertEqual(json.loads(students[0].weak_topics), ["RAG citations"])
         self.assertIn("RAG citations", students[0].recommended_action)
+        self.assertEqual(students[0].chat_summary, ["Why does grounding matter?"])
         self.assertEqual(concepts[0].wrong_rate, 50.0)
         self.assertIsNotNone(generated_at)
 

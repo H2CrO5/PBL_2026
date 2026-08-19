@@ -85,6 +85,7 @@ class GradeOverrideResponse(BaseModel):
 class TeacherSubmissionItem(BaseModel):
     submission_id: int
     assignment_id: int
+    external_assignment_id: str | None = None
     topic: str
     question_text: str
     answer_text: str
@@ -109,6 +110,7 @@ class TeacherStudentAnalytics(BaseModel):
     strong_topics: list[str]
     weak_topics: list[str]
     recent_submissions: list[TeacherSubmissionItem]
+    chat_summary: list[str] = Field(default_factory=list)
 
 
 class TeacherTopicMetric(BaseModel):
@@ -119,9 +121,28 @@ class TeacherTopicMetric(BaseModel):
     common_error_patterns: list[str] = Field(default_factory=list)
 
 
+class TeacherScoreTrend(BaseModel):
+    date: str
+    average_score: float
+    submissions: int
+
+
 class TeacherAnalyticsFeed(BaseModel):
     data_source: str
     generated_at: datetime
     external_course_id: str | None = None
     students: list[TeacherStudentAnalytics]
     topic_metrics: list[TeacherTopicMetric]
+    score_trend: list[TeacherScoreTrend] = Field(default_factory=list)
+
+
+class AssignmentAnalyticsFeed(BaseModel):
+    data_source: str = "student-real-submissions"
+    external_assignment_id: str
+    total_assigned: int
+    total_submitted: int
+    completion_rate: float
+    average_score: float
+    wrong_rate: float
+    missing_concepts: list[str] = Field(default_factory=list)
+    error_patterns: list[str] = Field(default_factory=list)

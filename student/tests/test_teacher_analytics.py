@@ -7,10 +7,11 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from db.models import Assignment, Base, Course, CourseMaterial, Student, Submission
+from db.models import Assignment, Base, ChatMessage, Course, CourseMaterial, Student, Submission
 from services.teacher_analytics import build_teacher_feed
 from api.routers.integration import (
     override_grade,
+    assignment_analytics,
     publish_assignment,
     require_teacher_integration,
     sync_material,
@@ -22,6 +23,7 @@ from api.schemas.integration import (
 )
 from api.schemas.assignments import SubmitRequest
 from api.routers.assignments import submit_answer
+from api.routers.students import _memory
 
 
 class TeacherAnalyticsFeedTest(unittest.TestCase):
@@ -74,6 +76,11 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
                 source="real",
             ),
         ])
+        self.db.add(ChatMessage(
+            student_id=student.id,
+            role="user",
+            content="How do I verify a citation?",
+        ))
         self.db.commit()
 
     def tearDown(self):
@@ -89,7 +96,16 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
         self.assertEqual(student["total_submissions"], 1)
         self.assertEqual(student["weak_topics"], ["RAG citations"])
         self.assertEqual(len(student["recent_submissions"]), 1)
+        self.assertEqual(student["chat_summary"], ["How do I verify a citation?"])
         self.assertEqual(feed["topic_metrics"][0]["wrong_rate"], 100.0)
+        self.assertEqual(len(feed["score_trend"]), 1)
+
+    def test_student_memory_uses_real_latest_attempts(self):
+        student = self.db.query(Student).filter(Student.student_code == "s1").one()
+        memory = _memory(self.db, student, None)
+        self.assertEqual(memory.overall_score, 40.0)
+        self.assertEqual(memory.weak_topics, ["RAG citations"])
+        self.assertEqual(memory.concept_mastery[0].evidence, [2])
 
     def test_integration_token_is_required(self):
         with patch("api.routers.integration.TEACHER_INTEGRATION_TOKEN", "expected"):
@@ -125,6 +141,41 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
         self.assertEqual(assignment.max_attempts, 2)
         course = self.db.query(Course).filter(Course.id == assignment.course_id).one()
         self.assertEqual(course.external_key, "course-1")
+
+    def test_assignment_analytics_uses_real_submission(self):
+        request = AssignmentPublishRequest(
+            external_assignment_id="asg-analytics",
+            external_course_id="course-analytics",
+            course_title="Analytics Course",
+            lecture_external_id="lecture-analytics",
+            lecture_number=1,
+            lecture_title="Analytics",
+            title="Analytics checkpoint",
+            target_concept="Evidence",
+            difficulty="balanced",
+            question_text="Explain evidence.",
+            correct_answer="Use sources.",
+            explanation="Use sources.",
+            rubric=["Uses sources"],
+        )
+        publish_assignment(request, self.db)
+        assignment = self.db.query(Assignment).filter(
+            Assignment.external_key == "asg-analytics:s1"
+        ).one()
+        self.db.add(Submission(
+            assignment_id=assignment.id,
+            student_id=assignment.student_id,
+            answer_text="Sources support claims.",
+            is_correct=True,
+            score=90,
+            feedback="Good",
+            source="real",
+        ))
+        self.db.commit()
+        result = assignment_analytics("asg-analytics", self.db)
+        self.assertEqual(result.total_assigned, 1)
+        self.assertEqual(result.total_submitted, 1)
+        self.assertEqual(result.average_score, 90.0)
 
     def test_material_sync_builds_course_scoped_chunks(self):
         request = MaterialSyncRequest(

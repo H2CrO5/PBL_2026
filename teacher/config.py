@@ -13,6 +13,8 @@ STREAMLIT_PORT = int(os.getenv("TEACHER_STREAMLIT_PORT", "8601"))
 API_BASE_URL = os.getenv("TEACHER_API_BASE_URL", f"http://localhost:{API_PORT}")
 
 MATERIALS_DIR = BASE_DIR / "materials"
+MATERIALS_S3_BUCKET = os.getenv("MATERIALS_S3_BUCKET", "").strip()
+MATERIALS_S3_PREFIX = os.getenv("MATERIALS_S3_PREFIX", "classpilot/materials").strip("/")
 
 # ── AWS Bedrock (mirrors the student module's auth: bearer token or boto3) ──
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
@@ -30,6 +32,7 @@ LLM_TEMPERATURE = 0.3
 # call fails) the analytics endpoints fall back to the deterministic rule-based
 # narration, so the teacher UI always renders something.
 USE_LLM = os.getenv("TEACHER_USE_LLM", "").strip().lower() not in ("", "0", "false", "no")
+DEMO_MODE = os.getenv("TEACHER_DEMO_MODE", "").strip().lower() in ("1", "true", "yes")
 
 # Optional live connection to the Student backend. When the token is set, the
 # Teacher API uses real Student submissions and fails visibly if that service is

@@ -23,6 +23,29 @@ def render():
     col2.metric(t("completion_rate"), f"{summary['completion_rate']:.1f}%")
     col3.metric(t("weak_concepts"), len(summary["weak_concepts"]))
 
+    st.subheader(t("assignment_analytics"))
+    published = get("/assignments") or []
+    if published:
+        labels = {f"{item['title']} ({item['target_concept']})": item for item in published}
+        selected = st.selectbox(t("select_assignment"), list(labels))
+        assignment_result = get(f"/assignments/{labels[selected]['id']}/analytics")
+        if assignment_result:
+            a1, a2, a3, a4 = st.columns(4)
+            a1.metric(t("assigned"), assignment_result["total_assigned"])
+            a2.metric(t("submissions"), assignment_result["total_submitted"])
+            a3.metric(t("average_score"), f"{assignment_result['average_score']:.1f}")
+            a4.metric(t("wrong_rate_metric"), f"{assignment_result['wrong_rate']:.1f}%")
+            if assignment_result["missing_concepts"]:
+                st.markdown(f"**{t('missing_concepts')}**")
+                for concept in assignment_result["missing_concepts"]:
+                    st.markdown(f"- {concept}")
+            if assignment_result["error_patterns"]:
+                st.markdown(f"**{t('error_patterns')}**")
+                for pattern in assignment_result["error_patterns"]:
+                    st.markdown(f"- {pattern}")
+    else:
+        st.info(t("no_published_assignments"))
+
     evidence = get("/analytics/evidence") or []
 
     st.subheader(t("incorrect_trends"))

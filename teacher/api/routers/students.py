@@ -10,6 +10,7 @@ from api.schemas.students import GradeOverrideRequest, GradeOverrideResponse, St
 from db.database import get_db
 from db.models import Course, StudentProfile, Teacher
 from services import student_data
+import config
 
 router = APIRouter(prefix="/students", tags=["students"])
 
@@ -36,6 +37,11 @@ def get_student_insights(
         students.sort(key=lambda student: student.average_score)
         data_source = "student-real-submissions"
     else:
+        if not config.DEMO_MODE:
+            raise HTTPException(
+                status_code=503,
+                detail="Student integration is required. Set TEACHER_DEMO_MODE=1 only for an intentional demo.",
+            )
         students = (
             db.query(StudentProfile)
             .filter(StudentProfile.course_id == course.id)
@@ -54,6 +60,7 @@ def get_student_insights(
             weak_topics=json.loads(s.weak_topics),
             recommended_action=s.recommended_action,
             recent_submissions=getattr(s, "recent_submissions", []),
+            chat_summary=getattr(s, "chat_summary", []),
             data_source=data_source,
         )
         for s in students

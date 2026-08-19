@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class RecentSubmissionResponse(BaseModel):
     submission_id: int
     assignment_id: int
+    external_assignment_id: str | None = None
     topic: str
     question_text: str
     answer_text: str
@@ -43,4 +44,5 @@ class StudentInsightResponse(BaseModel):
     weak_topics: list[str]
     recommended_action: str
     recent_submissions: list[RecentSubmissionResponse] = Field(default_factory=list)
+    chat_summary: list[str] = Field(default_factory=list)
     data_source: str = "teacher-demo-data"

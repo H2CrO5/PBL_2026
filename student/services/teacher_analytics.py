@@ -6,7 +6,7 @@ import json
 
 from sqlalchemy.orm import Session as DBSession
 
-from db.models import Assignment, Course, Enrollment, Student, Submission
+from db.models import Assignment, ChatMessage, Course, Enrollment, Student, Submission
 from services.progress import latest_attempts
 
 
@@ -33,6 +33,7 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
         students = db.query(Student).order_by(Student.student_code).all()
     student_rows = []
     class_topics: dict[str, list[Submission]] = defaultdict(list)
+    class_days: dict[str, list[float]] = defaultdict(list)
 
     for student in students:
         total_assignments = (
@@ -59,6 +60,15 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
             topic = submission.assignment.topic
             topic_scores[topic].append(submission.score)
             class_topics[topic].append(submission)
+            class_days[submission.submitted_at.strftime("%Y-%m-%d")].append(submission.score)
+
+        recent_questions = (
+            db.query(ChatMessage)
+            .filter(ChatMessage.student_id == student.id, ChatMessage.role == "user")
+            .order_by(ChatMessage.created_at.desc())
+            .limit(5)
+            .all()
+        )
 
         topic_averages = {
             topic: sum(scores) / len(scores) for topic, scores in topic_scores.items()
@@ -85,6 +95,7 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
                 {
                     "submission_id": submission.id,
                     "assignment_id": submission.assignment_id,
+                    "external_assignment_id": submission.assignment.external_key,
                     "topic": submission.assignment.topic,
                     "question_text": submission.assignment.question_text,
                     "answer_text": submission.answer_text,
@@ -99,6 +110,7 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
                 }
                 for submission in real_submissions[:10]
             ],
+            "chat_summary": [message.content[:240] for message in recent_questions],
         })
 
     topic_metrics = []
@@ -117,6 +129,14 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
             "common_error_patterns": list(dict.fromkeys(patterns))[:3],
         })
     topic_metrics.sort(key=lambda item: (-item["wrong_rate"], item["topic"]))
+    score_trend = [
+        {
+            "date": date,
+            "average_score": round(sum(scores) / len(scores), 1),
+            "submissions": len(scores),
+        }
+        for date, scores in sorted(class_days.items())
+    ]
 
     return {
         "data_source": "student-real-submissions",
@@ -124,4 +144,5 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
         "external_course_id": external_course_id,
         "students": student_rows,
         "topic_metrics": topic_metrics,
+        "score_trend": score_trend,
     }

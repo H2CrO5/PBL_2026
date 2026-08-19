@@ -4,6 +4,7 @@ These assets were supplied by the project owner on 2026-08-19 and are used in
 the Student and Teacher login screens, sidebars, browser titles, and favicons.
 
 - `classpilot-logo-light.png`: primary light-background logo.
+- `classpilot-favicon.png`: compact purple CP mark for Student and Teacher browser tabs.
 - `classpilot-brand-dark.png`: dark presentation background.
 - `classpilot-logo-variations.png`: approved layout variations.
 - `classpilot-brand-guide.png`: supplied brand overview.
