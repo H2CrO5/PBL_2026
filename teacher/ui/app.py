@@ -1,5 +1,6 @@
 """Streamlit application entry point for the teacher module."""
 
+from importlib import reload
 import sys
 from pathlib import Path
 
@@ -11,6 +12,11 @@ BRAND_ICON = Path(__file__).resolve().parents[2] / "assets" / "branding" / "clas
 
 from ui.components.sidebar import render_sidebar
 from ui.views import analytics, assignment, dashboard, login, materials, students
+
+# Streamlit keeps imported modules in memory between reruns. Reload view modules
+# so language and UI edits are reflected immediately during local development.
+for _view_module in (analytics, assignment, dashboard, login, materials, students):
+    reload(_view_module)
 
 st.set_page_config(
     page_title="ClassPilot Teacher",

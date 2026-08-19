@@ -18,7 +18,10 @@ def render():
     left, center, right = st.columns([1, 2, 1])
     with center:
         st.image(str(LOGO_PATH), width="stretch")
-        st.title(t("login_title"))
+        st.markdown(
+            f"<h1 style='text-align: center;'>{t('login_title')}</h1>",
+            unsafe_allow_html=True,
+        )
         st.markdown(t("login_instruction"))
 
         with st.form("login_form"):

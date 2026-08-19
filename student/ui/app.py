@@ -1,5 +1,6 @@
 """Streamlit application entry point."""
 
+from importlib import reload
 import sys
 from pathlib import Path
 
@@ -29,6 +30,11 @@ a { color: var(--classpilot-teal) !important; }
 
 from ui.components.sidebar import render_sidebar
 from ui.views import assignment, login, ta_chat
+
+# Streamlit keeps imported modules in memory between reruns. Reload view modules
+# so UI-only edits are reflected immediately during local development.
+for _view_module in (assignment, login, ta_chat):
+    reload(_view_module)
 
 # Initialize session state
 if "token" not in st.session_state:

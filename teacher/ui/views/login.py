@@ -15,7 +15,10 @@ def render():
     left, center, right = st.columns([1, 2, 1])
     with center:
         st.image(str(LOGO_PATH), width="stretch")
-        st.title(t("teacher_login"))
+        st.markdown(
+            f"<h1 style='text-align: center;'>{t('teacher_login')}</h1>",
+            unsafe_allow_html=True,
+        )
         st.markdown(t("login_intro"))
 
         with st.form("teacher_login"):
