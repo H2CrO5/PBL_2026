@@ -125,6 +125,10 @@ def _render_pending_by_lecture():
                     col_info, col_btn = st.columns([4, 1])
                     with col_info:
                         st.markdown(f"**{a['topic']}**　`{diff}`　`{qtype}`")
+                        if a.get("max_attempts", 1) > 1:
+                            st.caption(
+                                f"Attempt {a.get('attempts_used', 0) + 1} of {a['max_attempts']}"
+                            )
                         st.caption(a["question_text"][:80] + ("..." if len(a["question_text"]) > 80 else ""))
                     with col_btn:
                         if st.button(t("answer_button"), key=f"start_{a['id']}", use_container_width=True):
@@ -148,14 +152,15 @@ def _render_question(assignment: dict):
     st.markdown(assignment["question_text"])
 
     choices = assignment.get("choices")
+    draft_key = f"assignment_draft_{assignment['id']}"
 
     with st.form("answer_form"):
         if choices and assignment["question_type"] == "multiple_choice":
-            answer = st.radio(t("select_answer"), choices)
+            answer = st.radio(t("select_answer"), choices, key=draft_key)
         elif assignment["question_type"] == "code":
-            answer = st.text_area(t("enter_code"), height=150)
+            answer = st.text_area(t("enter_code"), height=150, key=draft_key)
         else:
-            answer = st.text_area(t("enter_answer"), height=100)
+            answer = st.text_area(t("enter_answer"), height=100, key=draft_key)
 
         submitted = st.form_submit_button(t("submit_answer"), use_container_width=True)
 
@@ -170,6 +175,7 @@ def _render_question(assignment: dict):
             )
             if result:
                 st.session_state.submission_result = result
+                st.session_state.pop(draft_key, None)
                 me = _api_get("/auth/me")
                 if me:
                     st.session_state.student = me
@@ -192,6 +198,8 @@ def _render_feedback(assignment: dict, submission: dict):
 
     st.markdown(f"**{t('feedback_label')}**")
     st.markdown(submission["feedback"])
+    if submission.get("attempts_remaining", 0):
+        st.info(f"You can retry {submission['attempts_remaining']} more time(s).")
 
     with st.expander(t("show_answer")):
         st.markdown(f"**{t('correct_answer_label')}** {submission['correct_answer']}")
@@ -242,6 +250,10 @@ def _render_history():
                         st.markdown(f"**{t('your_answer')}** {item['answer_text']}")
                         st.markdown(f"**{t('feedback_label')}** {item['feedback']}")
                         st.markdown(f"**{t('submitted_at')}** {item['submitted_at']}")
+                        st.caption(
+                            f"Attempt {item.get('attempt_number', 1)} | "
+                            f"Grading: {item.get('grading_source', 'auto')}"
+                        )
 
 
 def _render_history_chat():

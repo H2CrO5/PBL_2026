@@ -4,16 +4,16 @@ import streamlit as st
 
 TRANSLATIONS = {
     # ── App / Sidebar ─────────────────────────────────────
-    "app_title": {"ja": "学習支援システム", "en": "Learning Support System"},
-    "page_label": {"ja": "ページ", "en": "Page"},
+    "role_label": {"ja": "Student", "en": "Student"},
+    "navigation": {"ja": "ナビゲーション", "en": "Navigation"},
+    "page_dashboard": {"ja": "ダッシュボード", "en": "Dashboard"},
     "page_assignments": {"ja": "課題", "en": "Assignments"},
     "page_ta_bot": {"ja": "TA Bot", "en": "TA Bot"},
     "logout": {"ja": "ログアウト", "en": "Logout"},
     "language": {"ja": "言語", "en": "Language"},
 
     # ── Login ─────────────────────────────────────────────
-    "login_title": {"ja": "ログイン", "en": "Login"},
-    "login_instruction": {"ja": "学生IDとパスワードを入力してください。", "en": "Enter your student ID and password."},
+    "login_title": {"ja": "Student Login", "en": "Student Login"},
     "student_id": {"ja": "学生ID", "en": "Student ID"},
     "password": {"ja": "パスワード", "en": "Password"},
     "login_button": {"ja": "ログイン", "en": "Login"},
@@ -21,7 +21,7 @@ TRANSLATIONS = {
     "login_failed": {"ja": "ログインに失敗しました。", "en": "Login failed."},
     "login_connect_error": {"ja": "APIサーバーに接続できません。サーバーが起動しているか確認してください。", "en": "Cannot connect to the API server. Please check if the server is running."},
     "login_error": {"ja": "エラーが発生しました", "en": "An error occurred"},
-    "demo_account": {"ja": "デモアカウント: s2024001 / demo123", "en": "Demo account: s2024001 / demo123"},
+    "demo_accounts": {"ja": "デモアカウント", "en": "Demo Accounts"},
 
     # ── Assignments ───────────────────────────────────────
     "assignments_title": {"ja": "課題", "en": "Assignments"},
@@ -87,6 +87,28 @@ TRANSLATIONS = {
     "timeout_error": {"ja": "タイムアウトしました。もう一度試してください。", "en": "Request timed out. Please try again."},
     "api_error": {"ja": "エラーが発生しました。", "en": "An error occurred."},
     "score_label": {"ja": "スコア", "en": "Score"},
+
+    # ── Dashboard ────────────────────────────────────────
+    "welcome_student": {"ja": "ようこそ、{name}さん", "en": "Welcome, {name}"},
+    "dashboard_caption": {"ja": "現在の学習状況と最近の成績を確認できます。", "en": "Review your current progress and recent performance."},
+    "overall_score": {"ja": "総合スコア", "en": "Overall Score"},
+    "accuracy": {"ja": "正答率", "en": "Accuracy"},
+    "answered": {"ja": "回答済み", "en": "Answered"},
+    "today_progress": {"ja": "今日の進捗", "en": "Today's Progress"},
+    "weak_topics_title": {"ja": "復習が必要なトピック", "en": "Topics to Review"},
+    "strong_topics_title": {"ja": "得意なトピック", "en": "Strong Topics"},
+    "no_weak_topics": {"ja": "現在、明確な苦手トピックはありません。", "en": "No clear weak topics yet."},
+    "no_strong_topics": {"ja": "課題に回答すると得意トピックが表示されます。", "en": "Strong topics will appear after you complete assignments."},
+    "score_trend": {"ja": "日別スコア推移", "en": "Daily Score Trend"},
+    "topic_scores": {"ja": "トピック別スコア", "en": "Scores by Topic"},
+    "no_trend_data": {"ja": "推移を表示する提出データがまだありません。", "en": "No submission data is available for trends yet."},
+    "average_score": {"ja": "平均スコア", "en": "Average Score"},
+    "responses": {"ja": "回答数", "en": "Responses"},
+    "date": {"ja": "日付", "en": "Date"},
+    "topic": {"ja": "トピック", "en": "Topic"},
+    "concept_mastery": {"ja": "概念別習熟度", "en": "Concept Mastery"},
+    "mastery_score": {"ja": "習熟スコア", "en": "Mastery Score"},
+    "attempts": {"ja": "評価数", "en": "Evidence Count"},
 }
 
 

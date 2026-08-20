@@ -5,12 +5,25 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "=== Student Education System ==="
+TOOL_DIR="$SCRIPT_DIR/../.venv/bin"
+if [ ! -x "$TOOL_DIR/uvicorn" ] || [ ! -x "$TOOL_DIR/streamlit" ]; then
+    echo "Missing .venv. Run ./setup_classpilot.sh from the repository root first."
+    exit 1
+fi
+
+# Load shared local configuration when present. The real .env is gitignored.
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/../.env"
+    set +a
+fi
+
+echo "=== ClassPilot Student ==="
 echo "Starting FastAPI on port 8000 and Streamlit on port 8501..."
 echo ""
 
 # Start FastAPI in background
-uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload &
+"$TOOL_DIR/uvicorn" api.main:app --host 0.0.0.0 --port 8000 --reload &
 FASTAPI_PID=$!
 echo "FastAPI started (PID: $FASTAPI_PID)"
 
@@ -18,7 +31,7 @@ echo "FastAPI started (PID: $FASTAPI_PID)"
 sleep 2
 
 # Start Streamlit in foreground
-streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0 &
+"$TOOL_DIR/streamlit" run ui/app.py --server.port 8501 --server.address 0.0.0.0 &
 STREAMLIT_PID=$!
 echo "Streamlit started (PID: $STREAMLIT_PID)"
 

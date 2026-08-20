@@ -1,6 +1,8 @@
 # Evaluation System Design (`eval/`)
 
-Status: proposed design. Originates from a team proposal to build an evaluation system that verifies both subsystems using LLMs as simulated "teacher" and "student", and to make that evaluation a **constraint on the whole LLM-based system**.
+Status: implemented MVP. Offline/CI gates cover grading consistency, generation,
+TA grounding/hallucination, and analytics faithfulness; live Bedrock mode is
+available for calibrated runs.
 
 Related: `status-and-roadmap.md` (§4 promotes this to a parallel subsystem), `data-model.md` (§5 eval tables), `api-spec.md` (LLM endpoints under test).
 
@@ -8,9 +10,11 @@ Related: `status-and-roadmap.md` (§4 promotes this to a parallel subsystem), `d
 
 ## 1. Motivation
 
-- The student side already makes real Bedrock calls (grading, generation, TA bot RAG), but **nothing measures output quality** — grading consistency, hallucination, or citation grounding are all unmeasured.
-- The teacher side runs on deterministic seed data and has **no realistic inputs** to develop against; its analytics are rule-based with no LLM yet.
-- Four developers work in two independent groups; there is **no shared quality bar** binding them.
+- The student side makes real Bedrock calls that require measurable consistency
+  and grounding constraints.
+- Teacher analytics consumes real submissions when integration is enabled and
+  synthetic feeds remain useful for repeatable development.
+- Shared threshold gates bind both independently developed applications.
 
 One subsystem addresses all three: an LLM-driven evaluation harness that (a) generates realistic synthetic data, (b) judges subsystem output quality, and (c) enforces threshold gates as a shared constraint.
 

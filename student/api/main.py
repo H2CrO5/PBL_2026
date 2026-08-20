@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import admin, assignments, auth, chat, dashboard
+from api.routers import admin, assignments, auth, chat, dashboard, integration, students, submissions
 from db.database import create_tables
+from config import CORS_ORIGINS
 
 
 @asynccontextmanager
@@ -24,7 +25,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,6 +36,9 @@ app.include_router(dashboard.router)
 app.include_router(assignments.router)
 app.include_router(chat.router)
 app.include_router(admin.router)
+app.include_router(integration.router)
+app.include_router(students.router)
+app.include_router(submissions.router)
 
 
 @app.get("/health")

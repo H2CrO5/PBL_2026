@@ -9,16 +9,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from config import API_BASE_URL
 from ui.i18n import t
 
+BRAND_DIR = Path(__file__).resolve().parents[3] / "assets" / "branding"
+LOGO_PATH = BRAND_DIR / "classpilot-logo-light.png"
+
 
 def render():
     """Render the login form."""
-    st.title(t("login_title"))
-    st.markdown(t("login_instruction"))
+    left, center, right = st.columns([1, 2, 1])
+    with center:
+        st.image(str(LOGO_PATH), width="stretch")
+        st.markdown(
+            f"<h1 style='text-align: center;'>{t('login_title')}</h1>",
+            unsafe_allow_html=True,
+        )
 
-    with st.form("login_form"):
-        student_code = st.text_input(t("student_id"), value="s2024001")
-        password = st.text_input(t("password"), type="password", value="demo123")
-        submitted = st.form_submit_button(t("login_button"), use_container_width=True)
+        with st.form("login_form"):
+            student_code = st.text_input(t("student_id"), value="s2024001")
+            password = st.text_input(t("password"), type="password", value="demo123")
+            submitted = st.form_submit_button(t("login_button"), width="stretch")
 
     if submitted:
         if not student_code or not password:
@@ -44,5 +52,9 @@ def render():
         except Exception as e:
             st.error(f"{t('login_error')}: {e}")
 
-    st.divider()
-    st.caption(t("demo_account"))
+    with center:
+        st.divider()
+        st.markdown(f"**{t('demo_accounts')}**")
+        st.markdown("- `s2024001 / demo123` — 田中太郎")
+        st.markdown("- `s2024002 / demo123` — 鈴木花子")
+        st.markdown("- `s2024003 / demo123` — 佐藤健二")

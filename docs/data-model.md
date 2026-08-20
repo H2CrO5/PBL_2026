@@ -1,6 +1,7 @@
 # Data Model
 
-Status: reverse-engineered from the current independent prototypes, plus a proposed integration target schema. Reflects the code as of commit `337bc65` (teacher analytics workflow expanded).
+Status: implemented local integration model. `shared-integration.md` defines the
+cross-service contract and production migration boundary.
 
 This document is the source of truth for database schema discussion. Per `development-plan.md`, schema changes must be proposed here **before** implementation.
 
@@ -45,7 +46,8 @@ Backend: SQLite via SQLAlchemy (`student/db/models.py`). All timestamps are UTC.
 | deadline | datetime | nullable |
 | created_at | datetime | |
 
-Note: no `course_id`. Student-side lectures are flat (single implicit course).
+Student lectures now include `course_id` and a stable `external_key`. Existing
+records are placed in a conservative legacy course during startup migration.
 
 ### `assignments`
 
@@ -65,6 +67,9 @@ Note: no `course_id`. Student-side lectures are flat (single implicit course).
 
 Note: assignments are **per student** (personalized/adaptive), not shared question definitions.
 
+Assignments also carry `course_id`, stable `external_key`, rubric, points,
+maximum attempts, due time, and publication time.
+
 ### `submissions`
 
 | Column | Type | Notes |
@@ -77,6 +82,20 @@ Note: assignments are **per student** (personalized/adaptive), not shared questi
 | score | float | LLM-graded |
 | feedback | text | LLM-generated |
 | submitted_at | datetime | |
+
+`source` is added to distinguish `real`, `seed`, and `synthetic` submissions.
+Teacher live analytics include only `source = "real"`. Existing SQLite files
+are migrated on startup with old rows conservatively classified as `seed`.
+
+Submissions retain attempt number, grading status, automatic score/feedback,
+missing concepts, teacher error pattern, grading source, and review time. A
+teacher correction does not destroy the original automatic grade.
+
+### Shared integration tables
+
+`courses`, `enrollments`, `course_materials`, `material_chunks`, and
+`audit_logs` implement stable course identity, active enrollment, course-scoped
+RAG content/embeddings, and auditable integration writes.
 
 ### `chat_messages`
 
@@ -102,7 +121,9 @@ Note: assignments are **per student** (personalized/adaptive), not shared questi
 
 ## 2. Current Teacher Part schema
 
-Backend: SQLite via SQLAlchemy (`teacher/db/models.py`). Populated with **deterministic seed data** that mimics future shared-backend inputs. The analytics workflow (evidence view, teacher actions, richer lecture plans, seed candidates, readiness checks) is now substantially built out, but it is still **rule-based Python over seed data — no LLM calls** (confirmed: no Bedrock usage anywhere in `teacher/`).
+Backend: SQLite via SQLAlchemy (`teacher/db/models.py`). It retains deterministic
+demo rows when integration is intentionally disabled; configured integration
+uses real Student submissions and optional Bedrock narration/generation.
 
 Product scope (per `teacher/STUDENT_SYNC_README.md`): the Teacher Part is a **post-slide** tool. It structures already-completed lecture materials; it does not generate slides or decide teaching narrative.
 
@@ -171,6 +192,14 @@ Same shape as student `sessions`, but FK is `teacher_id → teachers.id`.
 
 Denormalized analytics mirror of student data. Primary integration seam with the Student Part.
 
+For the first live-integration increment, this table remains available for
+standalone Teacher demos. When `TEACHER_INTEGRATION_TOKEN` is configured,
+Teacher APIs read the authenticated Student analytics feed instead. The feed is
+labeled `student-submissions-including-seed`; each initial sample carries
+`source="seed"`, remains read-only, and is distinguishable from a real
+submission. Teacher does not silently fall back to its demo table if the
+Student service is unavailable.
+
 ### `concept_metrics`
 
 | Column | Type | Notes |
@@ -201,6 +230,9 @@ Denormalized analytics mirror of student data. Primary integration seam with the
 
 Teacher-authored anchors/constraints for future shared assignment generation.
 
+Question seeds now include points and maximum attempts. Published seeds are
+recorded in `published_assignments` with target, due date, and publication state.
+
 ### `teacher_reports`
 
 | Column | Type | Notes |
@@ -216,6 +248,11 @@ Teacher-authored anchors/constraints for future shared assignment generation.
 
 ## 3. Conflicts and duplication
 
+The table below records the original prototype conflicts. Course scope,
+enrollment, live analytics, and difficulty mapping are resolved in the local
+integration through stable external IDs; full table consolidation remains a
+production PostgreSQL migration.
+
 | # | Issue | Student side | Teacher side | Integration risk |
 |---|---|---|---|---|
 | C1 | **Student identity duplicated** | `students` (full record + auth) | `student_profiles` (denormalized mirror, `student_code` as plain string) | High — two sources of truth for who a student is |
@@ -223,7 +260,7 @@ Teacher-authored anchors/constraints for future shared assignment generation.
 | C3 | **`sessions` table split** | `student_id` FK | `teacher_id` FK | Medium — needs one role-aware session/auth model |
 | C4 | **Assignment concept split** | `assignments` = per-student generated items | `question_seeds` = teacher-authored anchors | By design; the `POST /backend/assignments/generate` draft (STUDENT_SYNC_README) is the intended bridge, not yet built |
 | C5 | **Concept vs topic vocabulary** | free-text `topic`; `weak_topics` JSON | structured `concept` + `wrong_rate` | Medium — no shared concept taxonomy |
-| C6 | **Analytics has no live source** | submissions exist | `student_profiles` / `concept_metrics` seeded, not derived | High — core data flow (submissions → analytics) not wired |
+| C6 | **Analytics live source** | submissions exist | live integration supersedes demo profiles | Resolved locally; consolidate in production DB |
 | C7 | **Difficulty vocabulary mismatch** | `easy` / `medium` / `hard` | `supportive` / `balanced` / `challenging` | Low/Medium — must unify one difficulty enum before shared generation maps seeds to assignments |
 
 ---

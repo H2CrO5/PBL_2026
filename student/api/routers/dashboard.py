@@ -15,6 +15,7 @@ from api.schemas.dashboard import (
 )
 from db.database import get_db
 from db.models import Assignment, Student, Submission
+from services.progress import latest_attempts
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -36,12 +37,12 @@ def get_summary(
     )
 
     # Topic scores
-    all_subs = (
+    all_subs = latest_attempts((
         db.query(Submission)
         .join(Assignment, Submission.assignment_id == Assignment.id)
         .filter(Submission.student_id == student.id)
         .all()
-    )
+    ))
 
     topic_scores_raw: dict[str, list[float]] = defaultdict(list)
     for sub in all_subs:
@@ -80,13 +81,13 @@ def get_trends(
     """Return daily score trends and topic-level aggregation."""
     since = datetime.utcnow() - timedelta(days=days)
 
-    submissions = (
+    submissions = latest_attempts((
         db.query(Submission)
         .join(Assignment, Submission.assignment_id == Assignment.id)
         .filter(Submission.student_id == student.id, Submission.submitted_at >= since)
         .order_by(Submission.submitted_at)
         .all()
-    )
+    ))
 
     # Daily aggregation
     daily: dict[str, list[float]] = defaultdict(list)
