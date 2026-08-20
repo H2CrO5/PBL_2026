@@ -146,7 +146,7 @@ QUESTION_SEEDS = [
         "title": "Event capacity status",
         "target_concept": "Edge-case handling",
         "seed_type": "required",
-        "difficulty": "balanced",
+        "difficulty": "medium",
         "question_text": (
             "Given a room capacity and the current number of registered students, "
             "return full, available, or overbooked. Include the equality boundary."
@@ -167,7 +167,7 @@ QUESTION_SEEDS = [
         "title": "Quiz average trace",
         "target_concept": "Problem decomposition",
         "seed_type": "base",
-        "difficulty": "supportive",
+        "difficulty": "easy",
         "question_text": (
             "Decompose a quiz-average problem into inputs, processing steps, output, and one edge case."
         ),
@@ -187,7 +187,7 @@ QUESTION_SEEDS = [
         "title": "Choose the right structure",
         "target_concept": "Data-structure selection",
         "seed_type": "required",
-        "difficulty": "balanced",
+        "difficulty": "medium",
         "question_text": (
             "For student lookup by ID, assignment processing in arrival order, and undoing the most "
             "recent material edit, choose suitable data structures and justify each choice."
@@ -207,7 +207,7 @@ QUESTION_SEEDS = [
         "title": "Complexity explanation rubric",
         "target_concept": "Complexity intuition",
         "seed_type": "rubric_seed",
-        "difficulty": "challenging",
+        "difficulty": "hard",
         "question_text": (
             "Explain why checking membership in a set can be preferable to repeated list scanning "
             "when validating submitted student IDs."

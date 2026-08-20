@@ -69,6 +69,27 @@ class MaterialSyncResponse(BaseModel):
     chunk_count: int
 
 
+class RagRetrieveRequest(BaseModel):
+    external_course_id: str = Field(min_length=1)
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class RagChunkResponse(BaseModel):
+    text: str
+    source: str
+    material_id: int
+    chunk_index: int
+    source_locator: str | None = None
+    score: float
+    retrieval_mode: str
+
+
+class RagRetrieveResponse(BaseModel):
+    external_course_id: str
+    chunks: list[RagChunkResponse]
+
+
 class GradeOverrideRequest(BaseModel):
     external_course_id: str = Field(min_length=1)
     score: float = Field(ge=0, le=100)
@@ -91,7 +112,9 @@ class TeacherSubmissionItem(BaseModel):
     answer_text: str
     is_correct: bool
     score: float
+    max_score: float
     feedback: str
+    student_feedback: str
     attempt_number: int
     grading_source: str
     source: Literal["real", "seed", "synthetic"] = "real"

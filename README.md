@@ -13,7 +13,6 @@ transport for submission records.
 ## First-time setup
 
 ```bash
-git switch codex/shared-course-assignment-rag
 ./setup_classpilot.sh
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
@@ -46,12 +45,27 @@ Request. `.env` is ignored by Git.
 2. Open **Question Bank** and generate a grounded Bedrock draft, or add a seed.
 3. Review the question and select **Publish to Student app**.
 4. The student answers it in the Student application.
+   Multiple questions in the same lecture can be submitted together.
 5. Open **Students** to see the real answer, feedback, error pattern, and score.
 6. If needed, save a grade correction; analytics are recalculated immediately.
 
 The Student **Dashboard** shows live score trends, accuracy, weak/strong topics
 and concept mastery evidence. Teacher **Analytics** includes class trends and
 assignment-level completion, missing concepts and grading error patterns.
+The TA Bot requires an enrolled course selection and keeps history isolated by
+course; assignment questions are additionally tied to an owned assignment.
+
+## Container integration environment
+
+With Docker installed, the same four processes can be started with:
+
+```bash
+docker compose up --build
+```
+
+Fresh container volumes receive the demo users automatically. PostgreSQL can be
+selected with `STUDENT_DATABASE_URL` and `TEACHER_DATABASE_URL`; see
+[docs/aws-collaboration.md](docs/aws-collaboration.md) before deployment.
 
 See [docs/shared-integration.md](docs/shared-integration.md) for contracts,
 metric definitions, security boundaries, and production migration notes.

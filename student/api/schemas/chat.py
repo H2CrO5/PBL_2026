@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class ChatMessageRequest(BaseModel):
     message: str
     external_course_id: str | None = None
+    assignment_id: int | None = None
 
 
 class SourceInfo(BaseModel):
@@ -24,6 +25,8 @@ class ChatMessageResponse(BaseModel):
     role: str
     content: str
     sources: list[SourceInfo] | None = None
+    external_course_id: str | None = None
+    assignment_id: int | None = None
     created_at: datetime
 
 

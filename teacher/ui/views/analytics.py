@@ -108,3 +108,18 @@ def render():
             for title in plan["recommended_seed_titles"]:
                 st.markdown(f"- {title}")
         st.caption(localize_text(plan["suggested_activity"]))
+
+    st.subheader(t("report_history"))
+    reports = get("/analytics/reports") or []
+    if not reports:
+        st.info(t("no_report_history"))
+    for report in reports[:5]:
+        label = f"{report['created_at'][:10]} — {', '.join(report['weakest_concepts'])}"
+        with st.expander(label):
+            st.markdown(localize_text(report["suggested_activity"]))
+            if report.get("opening_activity"):
+                st.markdown(f"**{t('opening_activity')}:** {localize_text(report['opening_activity'])}")
+            if report.get("follow_up_actions"):
+                st.markdown(f"**{t('follow_up')}**")
+                for action in report["follow_up_actions"]:
+                    st.markdown(f"- {localize_text(action)}")

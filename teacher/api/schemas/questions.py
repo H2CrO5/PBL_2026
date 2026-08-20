@@ -12,7 +12,7 @@ class QuestionSeedCreateRequest(BaseModel):
     title: str = Field(min_length=1)
     target_concept: str = Field(min_length=1)
     seed_type: Literal["base", "required", "rubric_seed"] = "base"
-    difficulty: Literal["supportive", "balanced", "challenging"] = "balanced"
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
     question_text: str = Field(min_length=1)
     expected_answer: str = Field(min_length=1)
     rubric: list[str] = Field(min_length=1)
@@ -43,7 +43,7 @@ class QuestionSeedCandidateResponse(BaseModel):
     title: str
     target_concept: str
     seed_type: Literal["base", "required", "rubric_seed"]
-    difficulty: Literal["supportive", "balanced", "challenging"]
+    difficulty: Literal["easy", "medium", "hard"]
     question_text: str
     expected_answer: str
     rubric: list[str]
@@ -96,12 +96,28 @@ class AssignmentPublishResponse(BaseModel):
     missing_student_codes: list[str]
 
 
+class AssignmentBatchPublishRequest(AssignmentPublishRequest):
+    seed_ids: list[int] = Field(min_length=1, max_length=20)
+
+
+class AssignmentBatchPublishResponse(BaseModel):
+    assignments: list[AssignmentPublishResponse]
+    created_for_students: int
+    already_present: int
+    missing_student_codes: list[str]
+
+
 class QuestionGenerateRequest(BaseModel):
     course_id: int
     lecture_id: int
     target_concept: str | None = None
     assignment_goal: str = "Check conceptual understanding using course evidence"
     target_student_codes: list[str] = Field(default_factory=list)
-    difficulty: Literal["supportive", "balanced", "challenging"] = "balanced"
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
     points: float = Field(default=100, gt=0)
     max_attempts: int = Field(default=1, ge=1, le=10)
+    number_questions: int = Field(default=1, ge=1, le=5)
+
+
+class QuestionGenerateBatchResponse(BaseModel):
+    questions: list[QuestionSeedResponse]

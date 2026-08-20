@@ -101,6 +101,23 @@ def sync_material(payload: dict) -> dict:
     )
 
 
+def retrieve_rag(external_course_id: str, query: str, top_k: int = 5) -> list[dict]:
+    result = _request(
+        "POST",
+        "/integrations/teacher/rag/retrieve",
+        {
+            "external_course_id": external_course_id,
+            "query": query,
+            "top_k": top_k,
+        },
+        timeout=config.STUDENT_RAG_TIMEOUT,
+    )
+    chunks = result.get("chunks")
+    if not isinstance(chunks, list):
+        raise StudentDataUnavailable("Student RAG API returned an invalid payload")
+    return chunks
+
+
 def override_grade(
     submission_id: int,
     external_course_id: str,

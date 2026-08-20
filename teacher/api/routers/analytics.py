@@ -20,6 +20,7 @@ from api.schemas.analytics import (
     LecturePlanRequest,
     LecturePlanResponse,
     TeacherAction,
+    TeacherReportResponse,
     WeakConcept,
 )
 from db.database import get_db
@@ -28,6 +29,14 @@ from services import analytics_llm
 from services import student_data
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+
+def _json_list(value: str | None) -> list[str]:
+    try:
+        result = json.loads(value or "[]")
+    except (json.JSONDecodeError, TypeError):
+        return []
+    return [str(item) for item in result] if isinstance(result, list) else []
 
 
 def _analytics_records(db: DBSession, course: Course):
@@ -106,6 +115,27 @@ def _concept_facts(
         }
         for concept in concepts
     ]
+
+
+def _rag_context(course: Course, concepts: list[ConceptMetric]) -> str:
+    """Retrieve course material for teaching prose, never for numeric facts."""
+    if not student_data.integration_enabled() or not concepts:
+        return ""
+    query = "\n".join(
+        [course.title]
+        + [f"{item.concept}: {item.misconception}" for item in concepts[:5]]
+    )
+    try:
+        chunks = student_data.retrieve_rag(course.external_key, query, top_k=5)
+    except student_data.StudentDataUnavailable as exc:
+        print(f"[analytics] RAG context unavailable: {exc}")
+        return ""
+    return "\n\n".join(
+        f"[{chunk.get('source', 'course material')} / "
+        f"{chunk.get('source_locator', 'chunk')}]\n{chunk.get('text', '')}"
+        for chunk in chunks
+        if chunk.get("text")
+    )
 
 
 def _evidence_for(
@@ -304,7 +334,9 @@ def evidence(
     narration = None
     if config.USE_LLM and concepts:
         try:
-            narration = analytics_llm.narrate_evidence(_concept_facts(concepts, students))
+            narration = analytics_llm.narrate_evidence(
+                _concept_facts(concepts, students), _rag_context(course, concepts)
+            )
         except Exception as exc:  # pragma: no cover - fallback path
             print(f"[analytics] evidence LLM fallback: {type(exc).__name__}: {exc}")
             narration = None
@@ -360,7 +392,9 @@ def lecture_plan(
             for c in concepts
         ]
         try:
-            prose = analytics_llm.narrate_lecture_plan(concept_facts, seed_titles)
+            prose = analytics_llm.narrate_lecture_plan(
+                concept_facts, seed_titles, _rag_context(course, concepts)
+            )
         except Exception as exc:  # pragma: no cover - fallback path
             print(f"[analytics] lecture-plan LLM fallback: {type(exc).__name__}: {exc}")
 
@@ -383,7 +417,44 @@ def lecture_plan(
         common_misconceptions=json.dumps(response.common_misconceptions),
         recommended_focus=json.dumps(response.recommended_focus),
         suggested_activity=response.suggested_activity,
+        opening_activity=response.opening_activity,
+        review_sequence=json.dumps(response.review_sequence, ensure_ascii=False),
+        in_class_check=response.in_class_check,
+        follow_up_actions=json.dumps(response.follow_up_actions, ensure_ascii=False),
+        recommended_seed_titles=json.dumps(response.recommended_seed_titles, ensure_ascii=False),
     ))
     db.commit()
 
     return response
+
+
+@router.get("/reports", response_model=list[TeacherReportResponse])
+def report_history(
+    teacher: Teacher = Depends(get_current_teacher),
+    db: DBSession = Depends(get_db),
+):
+    reports = (
+        db.query(TeacherReport)
+        .join(Course, TeacherReport.course_id == Course.id)
+        .filter(Course.teacher_id == teacher.id)
+        .order_by(TeacherReport.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    return [
+        TeacherReportResponse(
+            id=report.id,
+            course_id=report.course_id,
+            created_at=report.created_at,
+            weakest_concepts=_json_list(report.weakest_concepts),
+            common_misconceptions=_json_list(report.common_misconceptions),
+            recommended_focus=_json_list(report.recommended_focus),
+            suggested_activity=report.suggested_activity,
+            opening_activity=report.opening_activity or report.suggested_activity,
+            review_sequence=_json_list(report.review_sequence),
+            in_class_check=report.in_class_check or "",
+            follow_up_actions=_json_list(report.follow_up_actions),
+            recommended_seed_titles=_json_list(report.recommended_seed_titles),
+        )
+        for report in reports
+    ]

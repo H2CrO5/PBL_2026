@@ -144,6 +144,8 @@ class ChatMessage(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=True)
     role = Column(Text, nullable=False)  # user / assistant
     content = Column(Text, nullable=False)
     sources = Column(Text, nullable=True)  # JSON

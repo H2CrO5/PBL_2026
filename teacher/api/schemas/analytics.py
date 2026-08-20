@@ -58,3 +58,9 @@ class LecturePlanResponse(BaseModel):
     in_class_check: str
     follow_up_actions: list[str]
     recommended_seed_titles: list[str]
+
+
+class TeacherReportResponse(LecturePlanResponse):
+    id: int
+    course_id: int
+    created_at: datetime

@@ -4,8 +4,9 @@
 
 ```text
 Teacher material -> authenticated sync -> course-scoped RAG chunks
+Course RAG -> Teacher grounded generation / optional teaching-plan prose
 Teacher question seed -> publish -> enrolled Student assignment
-Student answer -> Bedrock grading -> latest-attempt progress
+Student answers -> batch or single submission -> Bedrock grading -> latest-attempt progress
 Real grading evidence -> Teacher analytics and individual insight
 Teacher correction -> Student record -> immediate analytics recalculation
 ```
@@ -33,7 +34,9 @@ Integration writes are idempotent and both sides store audit logs.
 - Student average is the mean of those latest attempts.
 - Class average includes only students with at least one real graded submission.
 - Class completion includes all actively enrolled students.
-- Seed and synthetic submissions never enter live Teacher analytics.
+- Initial seed answers are included with `source="seed"` so the three demo
+  accounts are visible before new activity; synthetic eval rows are excluded.
+  Teacher submission rows expose their source so seed evidence is distinguishable.
 - A teacher correction preserves the original automatic score and feedback.
 
 ## RAG behavior
@@ -49,6 +52,8 @@ page and slide markers are preserved in extracted text before chunking.
 TA Bot prompts require source labels for material-backed claims. When no course
 material supports a response, the bot must say that the course material could
 not verify it and label any general knowledge separately.
+TA conversations are stored and retrieved by enrolled course. Assignment chat
+also stores the owned assignment ID, preventing cross-course context mixing.
 
 ## Safety and operations
 
@@ -62,8 +67,9 @@ not verify it and label any general knowledge separately.
 
 ## Production migration
 
-The code is ready for local end-to-end development. Before a real university
-deployment, replace local SQLite with managed PostgreSQL, local material content
+The code supports local SQLite and optional `STUDENT_DATABASE_URL` /
+`TEACHER_DATABASE_URL` PostgreSQL connections. Before a real university
+deployment, migrate existing records to managed PostgreSQL, local material content
 with S3 object storage, and local sessions with a university identity provider
 or Amazon Cognito. Configure separate development/staging/production AWS
 accounts, KMS encryption, CloudWatch alarms, backups, retention rules, and

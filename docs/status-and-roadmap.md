@@ -26,7 +26,7 @@ Related documents:
 |---|---|---|
 | **Student** | Phase 3 (Student Part development) | **Working prototype with live LLM.** Login, adaptive assignments, LLM auto-grading, feedback, dashboard, history, and RAG TA bot all run against AWS Bedrock. |
 | **Teacher** | Phase 4 (local MVP complete) | **Grounded assignment workflow + real analytics.** Material upload/sync, targeted assignment generation/publication, assignment-level and student analytics, TA-question context, and lecture plans are available in JA/EN. Numeric facts come from stored Student grading results. |
-| **Shared backend** | Phase 2 (local integration) | Stable course/material/assignment IDs and authenticated service APIs connect the two local databases. |
+| **Shared backend** | Phase 2 (local integration) | Stable IDs and authenticated service APIs connect the databases; PostgreSQL URLs and Docker Compose are supported for deployment staging. |
 | **Docs** | Phase 1 | API, model, integration, setup, safety, and production migration documents are present. |
 | **Evaluation** | Cross-cutting | Grading, generation, TA grounding, and analytics gates run offline and in CI. |
 
@@ -41,7 +41,7 @@ for real submissions flow back with audit history.
 
 - **Student**: real Bedrock client with dual auth (Bearer / SigV4), LLM grading (`GRADING_PROMPT` → `invoke_json`), TA bot RAG (FAISS + Titan embeddings + Bedrock), student memory (`llm/memory.py`), Streamlit UI with i18n (JA/EN), SQLite + seed data, dashboard charts.
 - **Teacher**: FastAPI service with auth, PDF/PPTX/MD/TXT materials, optional S3 original-file storage, grounded question generation, targeted publication, assignment/class/student analytics, lecture planning and JA/EN Streamlit UI. Demo analytics require explicit `TEACHER_DEMO_MODE=1`; configured integrations fail visibly instead of silently substituting mock data.
-- **Shared**: authenticated service bridge, stable external IDs, shared-compatible endpoint aliases, course-scoped RAG sync, real-submission analytics and current API/data documentation.
+- **Shared**: authenticated service bridge, stable external IDs, shared-compatible endpoint aliases, course-scoped RAG sync/retrieval, multi-question batch submission, real-submission analytics and current API/data documentation.
 
 ## 3. Gaps (ranked)
 
@@ -78,8 +78,8 @@ The original plan places LLM evaluation in Phase 6 (the end). We **promote it to
 - [x] Teacher: LLM narration for `analytics.py` (evidence, teacher actions, lecture-plan) via `teacher/services/analytics_llm.py` behind `TEACHER_USE_LLM`, with rule-based fallback. *(done)*
 - [x] Eval: generation + TA-bot judges and gates, plus CI in `.github/workflows/eval-gates.yml`. *(done: step 3)*
 - [x] Eval: analytics-faithfulness judge/gate over the teacher numeric facts. *(done: step 4)*
-- [ ] Shared: agree the concept taxonomy (C5, now aligned in the eval feed) and a single difficulty enum (C7) so student and teacher vocabularies unify.
-- [ ] Docs: author `aws-collaboration.md` and an architecture diagram (Phase 1 leftovers).
+- [x] Shared: use one `easy` / `medium` / `hard` difficulty enum; concept names remain course-authored rather than globally hard-coded.
+- [x] Docs: author `aws-collaboration.md`; integration flow is maintained in `shared-integration.md`.
 
 ## 5. Local MVP completion and production boundary
 
@@ -87,5 +87,7 @@ The original plan places LLM evaluation in Phase 6 (the end). We **promote it to
 - [x] Shared-compatible assignment, submission, memory, history, chat, material and analytics routes.
 - [x] Grounded assignment generation and grading through Bedrock backend services.
 - [x] Shared RAG fed by Teacher materials and used by Student grading/TA Bot.
+- [x] Shared RAG retrieval used by Teacher assignment generation and optional analytics narration.
+- [x] Course-scoped TA history and multi-question batch submission.
 - [x] Grading, generation, analytics and TA Bot evaluation gates.
 - [ ] Production-only: one role-based identity provider/user store, managed PostgreSQL, configured S3 bucket, least-privilege IAM/OAuth, backup/retention policy and monitoring.

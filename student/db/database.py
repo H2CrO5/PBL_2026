@@ -8,13 +8,18 @@ from db.models import Base
 
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
 def create_tables():
     """Create all tables defined in the ORM models."""
     Base.metadata.create_all(bind=engine)
+    if engine.dialect.name != "sqlite":
+        # Production databases are created from the current metadata. The
+        # ALTER/legacy-copy steps below exist only for local prototype SQLite.
+        return
     # create_all does not add columns to an existing SQLite database. Keep the
     # prototype database forward-compatible without requiring Alembic yet.
     inspector = inspect(engine)
@@ -53,6 +58,10 @@ def create_tables():
         "teacher_error_pattern": "TEXT",
         "grading_source": "TEXT NOT NULL DEFAULT 'auto'",
         "reviewed_at": "DATETIME",
+    })
+    add_columns("chat_messages", {
+        "course_id": "INTEGER",
+        "assignment_id": "INTEGER",
     })
 
     # Preserve legacy records by placing them in one explicit course. New

@@ -10,7 +10,7 @@ FAISS_INDEX_DIR = BASE_DIR / "data" / "faiss_index"
 DOCUMENTS_DIR = BASE_DIR / "vectorstore" / "documents"
 
 # ── Database ───────────────────────────────────────────
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+DATABASE_URL = os.getenv("STUDENT_DATABASE_URL", f"sqlite:///{DB_PATH}")
 
 # ── AWS Bedrock ────────────────────────────────────────
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")

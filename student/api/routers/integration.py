@@ -17,6 +17,8 @@ from api.schemas.integration import (
     GradeOverrideResponse,
     MaterialSyncRequest,
     MaterialSyncResponse,
+    RagRetrieveRequest,
+    RagRetrieveResponse,
     TeacherAnalyticsFeed,
 )
 from config import TEACHER_INTEGRATION_TOKEN
@@ -31,7 +33,7 @@ from db.models import (
     Student,
     Submission,
 )
-from services.course_rag import ingest_material
+from services.course_rag import ingest_material, retrieve_course
 from services.progress import latest_attempts
 from llm.memory import build_student_memory
 from services.teacher_analytics import build_teacher_feed
@@ -286,6 +288,22 @@ def sync_material(req: MaterialSyncRequest, db: DBSession = Depends(get_db)):
         external_material_id=material.external_key,
         ingestion_status=material.ingestion_status,
         chunk_count=len(material.chunks),
+    )
+
+
+@router.post(
+    "/rag/retrieve",
+    response_model=RagRetrieveResponse,
+    dependencies=[Depends(require_teacher_integration)],
+)
+def retrieve_rag_context(req: RagRetrieveRequest, db: DBSession = Depends(get_db)):
+    """Return course-scoped chunks to other trusted backend services."""
+    course = db.query(Course).filter(Course.external_key == req.external_course_id).first()
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return RagRetrieveResponse(
+        external_course_id=course.external_key,
+        chunks=retrieve_course(db, course.id, req.query, top_k=req.top_k),
     )
 
 

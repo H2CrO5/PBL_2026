@@ -83,7 +83,7 @@ def render():
         )
         generation_difficulty = st.selectbox(
             t("difficulty"),
-            ["supportive", "balanced", "challenging"],
+            ["easy", "medium", "hard"],
             index=1,
             format_func=tv,
             key=f"generation_difficulty_{selected_lecture['id']}",
@@ -105,25 +105,22 @@ def render():
             disabled=not bool(context["materials"]),
             width="stretch",
         ):
-            generated = []
-            for _ in range(int(generation_count)):
-                result = post(
-                    "/assignments/generate",
-                    {
-                        "course_id": summary["course_id"],
-                        "lecture_id": selected_lecture["id"],
-                        "target_concept": generation_concept,
-                        "assignment_goal": generation_goal,
-                        "target_student_codes": [student_labels[label] for label in generation_targets],
-                        "difficulty": generation_difficulty,
-                        "points": 100,
-                        "max_attempts": 1,
-                    },
-                    timeout=120.0,
-                )
-                if result:
-                    generated.append(result)
-            if generated:
+            result = post(
+                "/assignments/generate-batch",
+                {
+                    "course_id": summary["course_id"],
+                    "lecture_id": selected_lecture["id"],
+                    "target_concept": generation_concept,
+                    "assignment_goal": generation_goal,
+                    "target_student_codes": [student_labels[label] for label in generation_targets],
+                    "difficulty": generation_difficulty,
+                    "points": 100,
+                    "max_attempts": 1,
+                    "number_questions": int(generation_count),
+                },
+                timeout=600.0,
+            )
+            if result and result.get("questions"):
                 st.success(t("draft_saved"))
                 st.rerun()
 
@@ -138,7 +135,7 @@ def render():
             t("seed_type"), ["base", "required", "rubric_seed"], format_func=tv
         )
         difficulty = col2.selectbox(
-            t("difficulty"), ["supportive", "balanced", "challenging"], index=1, format_func=tv
+            t("difficulty"), ["easy", "medium", "hard"], index=1, format_func=tv
         )
         question_text = st.text_area(t("question"), height=120)
         expected_answer = st.text_area(t("expected_answer"), height=100)
@@ -246,6 +243,35 @@ def render():
     lecture_seeds = [seed for seed in seeds if seed["lecture_id"] == selected_lecture["id"]]
     if not lecture_seeds:
         st.info(t("no_seeds"))
+    if len(lecture_seeds) > 1:
+        seed_labels = {f"{seed['title']} (#{seed['id']})": seed["id"] for seed in lecture_seeds}
+        selected_seeds = st.multiselect(
+            t("select_questions"),
+            list(seed_labels),
+            key=f"batch_publish_seeds_{selected_lecture['id']}",
+        )
+        batch_targets = st.multiselect(
+            t("target_students"),
+            list(student_labels),
+            key=f"batch_publish_targets_{selected_lecture['id']}",
+        )
+        if st.button(
+            t("publish_selected"),
+            disabled=not selected_seeds,
+            key=f"batch_publish_{selected_lecture['id']}",
+            width="stretch",
+        ):
+            result = post("/assignments/publish-batch", {
+                "seed_ids": [seed_labels[label] for label in selected_seeds],
+                "target_student_codes": [student_labels[label] for label in batch_targets],
+            })
+            if result:
+                st.success(t(
+                    "published",
+                    created=result["created_for_students"],
+                    existing=result["already_present"],
+                ))
+                st.rerun()
     for seed in lecture_seeds:
         with st.container(border=True):
             _show_seed(seed)

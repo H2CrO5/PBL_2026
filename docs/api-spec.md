@@ -35,12 +35,13 @@ Conventions: all bodies are JSON. Types below use JSON/OpenAPI naming. `?` marks
 | GET | `/assignments/pending` | yes | — | `[AssignmentResponse]` |
 | GET | `/assignments/pending/by-lecture` | yes | — | `[LectureAssignments]` |
 | POST | `/assignments/submit` | yes | `{assignment_id, answer_text}` | `SubmissionResponse` |
+| POST | `/assignments/batch/submissions` | yes | `{answers:[{assignment_id,answer_text}]}` | scores and persisted results for all questions |
 | POST | `/assignments/{assignment_id}/submissions` | yes | `{answer_text}` or `{answers:[...]}` | `SubmissionResponse` |
 | GET | `/assignments/history` | yes | — | `HistoryResponse` |
 | GET | `/assignments/history/by-lecture` | yes | — | `[HistoryLectureGroup]` |
 
 - `AssignmentResponse`: `{id, topic, difficulty, question_text, choices:[str]?, question_type, lecture_id?}` — `difficulty` is `easy`/`medium`/`hard`.
-- `SubmissionResponse`: `{id, assignment_id, answer_text, is_correct, score, feedback, correct_answer, explanation}` — `is_correct`, `score`, `feedback` are **LLM-generated** (`prompts.GRADING_PROMPT` via Bedrock).
+- `SubmissionResponse`: `{id, assignment_id, answer_text, is_correct, score, max_score, feedback, student_feedback, missing_concepts, correct_answer, explanation}` — grading prose and scores are produced by the backend Bedrock grading service and persisted.
 - `HistoryResponse`: `{items:[HistoryItem], total}`
 
 `POST /assignments/submit` is the primary LLM path on the student side (grade → feedback → profile update).
@@ -56,6 +57,7 @@ that stored result and never grades the answer twice.
 | GET | `/students/{student_id}/history` | self | real submission history |
 | GET | `/students/{student_id}/memory` | self | concept mastery with submission evidence |
 | GET | `/students/me/memory` | yes | concept mastery for the logged-in student |
+| GET | `/students/me/courses` | yes | active enrolled courses for course selection |
 | GET | `/submissions/{submission_id}` | owner | persisted grading result |
 | POST | `/submissions/{submission_id}/grade` | owner | persisted grading result |
 
@@ -73,9 +75,9 @@ that stored result and never grades the answer twice.
 
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
-| POST | `/chat/message` | yes | `{message}` | `ChatMessageResponse` |
-| POST | `/chat` | yes | `{message}` | `ChatMessageResponse` |
-| GET | `/chat/history` | yes | — | `ChatHistoryResponse` |
+| POST | `/chat/message` | yes | `{message, external_course_id?, assignment_id?}` | `ChatMessageResponse` |
+| POST | `/chat` | yes | same | `ChatMessageResponse` |
+| GET | `/chat/history` | yes | `external_course_id?`, `assignment_id?` | course/assignment-scoped history |
 
 `ChatMessageResponse`: `{id, role, content, sources:[{source, score}]?}` — RAG over FAISS + Bedrock generation. `sources` are retrieval citations.
 
@@ -92,6 +94,7 @@ Read-only DB inspection: `/admin/db/students`, `/db/lectures`, `/db/assignments`
 | POST | `/integrations/teacher/courses/sync` | `X-Integration-Token` | course/enrollment sync |
 | POST | `/integrations/teacher/assignments/publish` | `X-Integration-Token` | idempotent publication |
 | POST | `/integrations/teacher/materials/sync` | `X-Integration-Token` | course RAG ingestion |
+| POST | `/integrations/teacher/rag/retrieve` | `X-Integration-Token` | course-scoped RAG chunks for backend generation/analytics |
 | POST | `/integrations/teacher/submissions/{id}/override` | `X-Integration-Token` | grade correction |
 
 This service boundary exposes Student submission aggregates and tightly
@@ -148,7 +151,7 @@ Integration note: Student Part must not read teacher material files directly; th
 | POST | `/questions/{seed_id}/publish` | yes | target/due date | publication result |
 | GET | `/questions/generation-context/{lecture_id}` | yes | — | `GenerationContextResponse` |
 
-- `QuestionSeedCreateRequest`: `{course_id, lecture_id, title, target_concept, seed_type("base"|"required"|"rubric_seed")="base", difficulty("supportive"|"balanced"|"challenging")="balanced", question_text, expected_answer, rubric:[str], notes?}`
+- `QuestionSeedCreateRequest`: `{course_id, lecture_id, title, target_concept, seed_type("base"|"required"|"rubric_seed")="base", difficulty("easy"|"medium"|"hard")="medium", question_text, expected_answer, rubric:[str], notes?}`
 - `GenerationContextResponse`: `{course_id, lecture_id, lecture_title, learning_objectives:[str], materials:[{id, title, material_type, ingestion_status}], material_titles:[str], weak_concepts:[str], question_seeds:[QuestionSeedResponse], question_seed_candidates:[QuestionSeedCandidateResponse], readiness_checks:[{name, status("ready"|"warning"|"blocked"), detail}], ready_for_generation:bool, backend_instruction}` — the preview of what the shared backend will consume to generate assignments. `question_seed_candidates` are locally-suggested seeds for teacher review; `readiness_checks` gate handoff.
 
 `seed_type`: `base` (backend may adapt) / `required` (must be represented) / `rubric_seed` (grading guidance). Structured teacher controls live in `notes`: Assessment scope (`practice_only`/`formative_checkpoint`/`exam_relevant`), Variation policy (`allow_variants`/`teacher_review_required`/`do_not_generate_variants`), Teacher priority (`normal`/`high`/`critical`).
@@ -158,8 +161,11 @@ Integration note: Student Part must not read teacher material files directly; th
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | POST | `/assignments/generate` | yes | grounded draft generation with goal, difficulty and optional target students |
+| POST | `/assignments/generate-batch` | yes | generate 1–5 reviewable questions in one request |
 | GET | `/assignments` | yes | list reviewed/published assignments |
+| GET | `/assignments/{assignment_id}` | yes | reviewed assignment details and rubric |
 | POST | `/assignments/{assignment_id}/publish` | yes | idempotently publish to Student |
+| POST | `/assignments/publish-batch` | yes | publish selected lecture questions together |
 | GET | `/assignments/{assignment_id}/analytics` | yes | real completion, score, missing-concept and error-pattern analytics |
 
 ### Course-scoped compatibility contract — `/courses`
@@ -178,6 +184,7 @@ Integration note: Student Part must not read teacher material files directly; th
 | GET | `/analytics/dashboard` | yes | — | `DashboardSummary` |
 | GET | `/analytics/evidence` | yes | — | `[EvidenceItem]` |
 | POST | `/analytics/lecture-plan` | yes | `{course_id, question_seed_id?}` | `LecturePlanResponse` |
+| GET | `/analytics/reports` | yes | — | saved lecture-plan history |
 
 - `DashboardSummary`: `{course_id, course_title, total_students, average_score, completion_rate, weak_concepts:[{concept, wrong_rate, misconception, recommended_focus}], question_seed_count, required_question_count, teacher_actions:[{priority, title, reason, next_step}]}`
 - The implemented dashboard also returns `data_source` and `data_updated_at` so
@@ -205,15 +212,17 @@ recent real submissions with answer text, score, feedback, and timestamp.
 
 Per `development-plan.md` and the contract draft in `teacher/STUDENT_SYNC_README.md`, the independent endpoints converge on a role-based shared API.
 
-### Assignment generation contract (draft)
+### Assignment generation contract
 
 ```
 POST /backend/assignments/generate
 ```
 
-Input (draft): `{course_id, lecture_id, student_id, material_ids:[int], question_seed_ids:[int], weak_concepts:[str], student_memory:{weak_topics:[str], strong_topics:[str], recent_scores:[int]}}`
+Input: `{course_id, lecture_id, target_concept, assignment_goal, target_student_codes:[str], difficulty}`
 
-Output (draft): `{assignment_id, student_id, lecture_id, questions:[{question_id, source_seed_id, target_concept, difficulty, question_text, expected_answer, rubric:[str]}]}`
+Output: a teacher-reviewable question seed. The UI can generate several seeds;
+published seeds appear as one lecture group in Student, where all questions can
+be submitted together through the batch endpoint.
 
 The two local FastAPI services implement the public aliases in this section and
 communicate through authenticated integration endpoints. A future single

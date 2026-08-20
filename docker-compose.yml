@@ -1,0 +1,51 @@
+services:
+  student-api:
+    build: ./student
+    command: ["sh", "-c", "python -m db.seed && exec uvicorn api.main:app --host 0.0.0.0 --port 8000"]
+    env_file: .env
+    environment:
+      STUDENT_CORS_ORIGINS: http://localhost:8501
+    ports:
+      - "8000:8000"
+    volumes:
+      - student-data:/app/student/data
+
+  student-ui:
+    build: ./student
+    env_file: .env
+    command: ["streamlit", "run", "ui/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    environment:
+      API_BASE_URL: http://student-api:8000
+    depends_on:
+      - student-api
+    ports:
+      - "8501:8501"
+
+  teacher-api:
+    build: ./teacher
+    command: ["sh", "-c", "python -m db.seed && exec uvicorn api.main:app --host 0.0.0.0 --port 8100"]
+    env_file: .env
+    environment:
+      STUDENT_API_BASE_URL: http://student-api:8000
+      TEACHER_CORS_ORIGINS: http://localhost:8601
+    depends_on:
+      - student-api
+    ports:
+      - "8100:8100"
+    volumes:
+      - teacher-data:/app/teacher/data
+
+  teacher-ui:
+    build: ./teacher
+    env_file: .env
+    command: ["streamlit", "run", "ui/app.py", "--server.address=0.0.0.0", "--server.port=8601"]
+    environment:
+      TEACHER_API_BASE_URL: http://teacher-api:8100
+    depends_on:
+      - teacher-api
+    ports:
+      - "8601:8601"
+
+volumes:
+  student-data:
+  teacher-data:

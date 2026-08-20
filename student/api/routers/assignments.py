@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session as DBSession
 from api.dependencies import get_current_student
 from api.schemas.assignments import (
     AssignmentResponse,
+    BatchSubmissionRequest,
+    BatchSubmissionResponse,
     HistoryAssignment,
     HistoryItem,
     HistoryLectureGroup,
@@ -40,6 +42,7 @@ def _assignment_response(db: DBSession, assignment: Assignment, student_id: int)
     ).count()
     return AssignmentResponse(
         id=assignment.id,
+        external_assignment_id=assignment.external_key,
         topic=assignment.topic,
         difficulty=assignment.difficulty,
         question_text=assignment.question_text,
@@ -48,6 +51,7 @@ def _assignment_response(db: DBSession, assignment: Assignment, student_id: int)
         lecture_id=assignment.lecture_id,
         course_id=assignment.course_id,
         title=assignment.title,
+        points=assignment.points,
         max_attempts=assignment.max_attempts,
         attempts_used=attempts_used,
         due_at=assignment.due_at,
@@ -209,6 +213,7 @@ def get_history_by_lecture(
                 answer_text=sub.answer_text,
                 is_correct=sub.is_correct,
                 score=sub.score,
+                max_score=sub.max_score,
                 feedback=sub.feedback,
                 attempt_number=sub.attempt_number,
                 grading_source=sub.grading_source,
@@ -370,7 +375,9 @@ def submit_answer(
         answer_text=submission.answer_text,
         is_correct=submission.is_correct,
         score=submission.score,
+        max_score=submission.max_score,
         feedback=submission.feedback,
+        student_feedback=submission.feedback,
         correct_answer=assignment.correct_answer,
         explanation=assignment.explanation,
         attempt_number=submission.attempt_number,
@@ -378,6 +385,42 @@ def submit_answer(
         grading_source=submission.grading_source,
         missing_concepts=missing_concepts,
         submitted_at=submission.submitted_at,
+    )
+
+
+@router.post("/batch/submissions", response_model=BatchSubmissionResponse)
+def create_batch_submissions(
+    req: BatchSubmissionRequest,
+    student: Student = Depends(get_current_student),
+    db: DBSession = Depends(get_db),
+):
+    """Submit and grade every question in one student action.
+
+    The ownership and duplicate checks run before grading starts. Provider
+    failures keep already-saved answers with an explicit failure status, so no
+    student input is silently lost.
+    """
+    ids = [answer.assignment_id for answer in req.answers]
+    if len(ids) != len(set(ids)):
+        raise HTTPException(status_code=422, detail="Duplicate assignment IDs are not allowed")
+    owned = db.query(Assignment).filter(
+        Assignment.id.in_(ids), Assignment.student_id == student.id
+    ).count()
+    if owned != len(ids):
+        raise HTTPException(status_code=404, detail="One or more assignments were not found")
+
+    results = [
+        submit_answer(
+            SubmitRequest(assignment_id=answer.assignment_id, answer_text=answer.answer_text),
+            student,
+            db,
+        )
+        for answer in req.answers
+    ]
+    return BatchSubmissionResponse(
+        submissions=results,
+        total_score=round(sum(result.score for result in results), 1),
+        max_score=round(sum(result.max_score for result in results), 1),
     )
 
 
@@ -435,6 +478,7 @@ def get_history(
             answer_text=sub.answer_text,
             is_correct=sub.is_correct,
             score=sub.score,
+            max_score=sub.max_score,
             feedback=sub.feedback,
             submitted_at=sub.submitted_at,
         )

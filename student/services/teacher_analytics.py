@@ -80,13 +80,13 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
             class_topics[topic].append(submission)
             class_days[submission.submitted_at.strftime("%Y-%m-%d")].append(submission.score)
 
-        recent_questions = (
-            db.query(ChatMessage)
-            .filter(ChatMessage.student_id == student.id, ChatMessage.role == "user")
-            .order_by(ChatMessage.created_at.desc())
-            .limit(5)
-            .all()
+        recent_questions = db.query(ChatMessage).filter(
+            ChatMessage.student_id == student.id,
+            ChatMessage.role == "user",
         )
+        if course:
+            recent_questions = recent_questions.filter(ChatMessage.course_id == course.id)
+        recent_questions = recent_questions.order_by(ChatMessage.created_at.desc()).limit(5).all()
 
         topic_averages = {
             topic: sum(scores) / len(scores) for topic, scores in topic_scores.items()
@@ -119,7 +119,9 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
                     "answer_text": submission.answer_text,
                     "is_correct": submission.is_correct,
                     "score": submission.score,
+                    "max_score": submission.max_score,
                     "feedback": submission.feedback,
+                    "student_feedback": submission.feedback,
                     "attempt_number": submission.attempt_number,
                     "grading_source": submission.grading_source,
                     "source": submission.source,

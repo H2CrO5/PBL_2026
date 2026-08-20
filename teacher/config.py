@@ -5,7 +5,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "data" / "teacher.db"
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+DATABASE_URL = os.getenv("TEACHER_DATABASE_URL", f"sqlite:///{DB_PATH}")
 
 API_HOST = "0.0.0.0"
 API_PORT = int(os.getenv("TEACHER_API_PORT", "8100"))

@@ -8,13 +8,16 @@ from db.models import Base
 
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
 def create_tables():
     """Create all ORM tables."""
     Base.metadata.create_all(bind=engine)
+    if engine.dialect.name != "sqlite":
+        return
     inspector = inspect(engine)
 
     def add_columns(table: str, definitions: dict[str, str]):
@@ -32,7 +35,25 @@ def create_tables():
         "points": "FLOAT NOT NULL DEFAULT 100",
         "max_attempts": "INTEGER NOT NULL DEFAULT 1",
     })
+    add_columns("teacher_reports", {
+        "opening_activity": "TEXT",
+        "review_sequence": "TEXT NOT NULL DEFAULT '[]'",
+        "in_class_check": "TEXT",
+        "follow_up_actions": "TEXT NOT NULL DEFAULT '[]'",
+        "recommended_seed_titles": "TEXT NOT NULL DEFAULT '[]'",
+    })
     with engine.begin() as connection:
+        # Historical demo rows used "ready" before shared RAG existed. Mark
+        # them explicitly as waiting for sync instead of implying indexing.
+        connection.execute(text(
+            "UPDATE materials SET ingestion_status = 'local_only' "
+            "WHERE ingestion_status = 'ready'"
+        ))
+        connection.execute(text(
+            "UPDATE question_seeds SET difficulty = CASE difficulty "
+            "WHEN 'supportive' THEN 'easy' WHEN 'balanced' THEN 'medium' "
+            "WHEN 'challenging' THEN 'hard' ELSE difficulty END"
+        ))
         connection.execute(text(
             "UPDATE courses SET external_key = 'course-' || id WHERE external_key IS NULL"
         ))

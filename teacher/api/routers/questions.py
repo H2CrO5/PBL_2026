@@ -64,7 +64,7 @@ def _seed_response(seed: QuestionSeed) -> QuestionSeedResponse:
 
 def _candidate_for(concept: str, lecture_title: str, required_missing: bool) -> QuestionSeedCandidateResponse:
     seed_type = "required" if required_missing else "base"
-    difficulty = "balanced" if required_missing else "supportive"
+    difficulty = "medium" if required_missing else "easy"
     title = f"{concept} checkpoint"
     notes = (
         "Assessment scope: formative_checkpoint\n"
@@ -125,7 +125,11 @@ def _readiness_checks(
     seeds: list[QuestionSeed],
 ) -> list[ReadinessCheckResponse]:
     objectives = json.loads(lecture.learning_objectives)
-    ready_materials = [material for material in materials if material.ingestion_status == "ready"]
+    ready_materials = [
+        material
+        for material in materials
+        if material.ingestion_status in {"ready_bedrock", "ready_lexical"}
+    ]
     required_seeds = [seed for seed in seeds if seed.seed_type == "required"]
     rubric_seeds = [seed for seed in seeds if seed.seed_type == "rubric_seed"]
 
@@ -262,11 +266,30 @@ def generate_question_draft(
                 for item in feed.get("students", [])
                 if not selected_codes or item["student_code"] in selected_codes
             ]
+        generation_materials = []
+        if student_data.integration_enabled():
+            query = "\n".join([
+                concept,
+                req.assignment_goal,
+                *json.loads(lecture.learning_objectives),
+            ])
+            chunks = student_data.retrieve_rag(course.external_key, query, top_k=6)
+            generation_materials = [
+                {
+                    "title": f"{item['source']} / {item.get('source_locator') or 'chunk'}",
+                    "content": item["text"],
+                }
+                for item in chunks
+            ]
+        if not generation_materials:
+            generation_materials = [
+                {"title": item.title, "content": item.content} for item in materials
+            ]
         draft = assignment_generation.generate_draft(
             concept,
             req.difficulty,
             json.loads(lecture.learning_objectives),
-            [{"title": item.title, "content": item.content} for item in materials],
+            generation_materials,
             assignment_goal=req.assignment_goal,
             student_context=student_context,
         )

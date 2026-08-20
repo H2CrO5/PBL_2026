@@ -3,6 +3,13 @@
 from pydantic import BaseModel, Field
 
 
+class StudentCourseResponse(BaseModel):
+    id: int
+    external_course_id: str
+    title: str
+    term: str
+
+
 class ConceptMastery(BaseModel):
     concept: str
     mastery_score: float

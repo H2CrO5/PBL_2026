@@ -24,7 +24,7 @@ def _as_str_list(value) -> list[str]:
     return [v.strip() for v in value if isinstance(v, str) and v.strip()]
 
 
-def narrate_evidence(concept_facts: list[dict]) -> dict[str, dict]:
+def narrate_evidence(concept_facts: list[dict], course_context: str = "") -> dict[str, dict]:
     """Return {concept -> {"typical_errors": [...], "recommended_action": str}}.
 
     `concept_facts` items: {concept, wrong_rate, misconception, affected_count}.
@@ -34,7 +34,8 @@ def narrate_evidence(concept_facts: list[dict]) -> dict[str, dict]:
         return {}
 
     prompt = prompts.EVIDENCE_PROMPT.format(
-        concept_facts=json.dumps(concept_facts, ensure_ascii=False, indent=2)
+        concept_facts=json.dumps(concept_facts, ensure_ascii=False, indent=2),
+        course_context=course_context or "（利用可能な教材文脈なし）",
     )
     result = bedrock_client.invoke_json(prompt, system=prompts.EVIDENCE_SYSTEM)
 
@@ -57,7 +58,9 @@ def narrate_evidence(concept_facts: list[dict]) -> dict[str, dict]:
     return out
 
 
-def narrate_lecture_plan(concept_facts: list[dict], seed_titles: list[str]) -> dict:
+def narrate_lecture_plan(
+    concept_facts: list[dict], seed_titles: list[str], course_context: str = ""
+) -> dict:
     """Return the prose fields of a lecture plan.
 
     Keys: suggested_activity, opening_activity, review_sequence,
@@ -66,6 +69,7 @@ def narrate_lecture_plan(concept_facts: list[dict], seed_titles: list[str]) -> d
     prompt = prompts.LECTURE_PLAN_PROMPT.format(
         concept_facts=json.dumps(concept_facts, ensure_ascii=False, indent=2),
         seed_titles=json.dumps(seed_titles, ensure_ascii=False),
+        course_context=course_context or "（利用可能な教材文脈なし）",
     )
     result = bedrock_client.invoke_json(prompt, system=prompts.LECTURE_PLAN_SYSTEM)
     if not isinstance(result, dict):

@@ -7,6 +7,7 @@ from io import BytesIO
 
 from services.student_data import teacher_records
 from services.assignment_generation import generate_draft
+from services.analytics_llm import narrate_evidence
 from api.routers.materials import _extract_upload
 
 
@@ -74,6 +75,28 @@ class StudentDataAdapterTest(unittest.TestCase):
         self.assertEqual(material_type, "slide")
         self.assertIn("[Slide 1]", text)
         self.assertIn("Verify every cited claim", text)
+
+    @patch("services.analytics_llm.bedrock_client.invoke_json")
+    def test_analytics_narration_receives_rag_course_context(self, invoke_json):
+        invoke_json.return_value = {
+            "items": [{
+                "concept": "Grounding",
+                "typical_errors": ["Evidence is omitted"],
+                "recommended_action": "Review the cited example.",
+            }]
+        }
+        result = narrate_evidence(
+            [{
+                "concept": "Grounding",
+                "wrong_rate": 50,
+                "misconception": "A citation alone is sufficient",
+                "affected_count": 2,
+            }],
+            "[Lecture slide 4] Verify that evidence supports the claim.",
+        )
+        self.assertIn("Grounding", result)
+        prompt = invoke_json.call_args.args[0]
+        self.assertIn("Lecture slide 4", prompt)
 
 
 if __name__ == "__main__":

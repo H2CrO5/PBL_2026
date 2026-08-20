@@ -221,7 +221,7 @@ Student service is unavailable.
 | title | text | |
 | target_concept | text | |
 | seed_type | text | `base` / `required` / `rubric_seed` |
-| difficulty | text | `supportive` / `balanced` / `challenging` |
+| difficulty | text | shared enum: `easy` / `medium` / `hard` |
 | question_text | text | |
 | expected_answer | text | |
 | rubric | text | JSON list |
@@ -261,7 +261,7 @@ production PostgreSQL migration.
 | C4 | **Assignment concept split** | `assignments` = per-student generated items | `question_seeds` = teacher-authored anchors | By design; the `POST /backend/assignments/generate` draft (STUDENT_SYNC_README) is the intended bridge, not yet built |
 | C5 | **Concept vs topic vocabulary** | free-text `topic`; `weak_topics` JSON | structured `concept` + `wrong_rate` | Medium — no shared concept taxonomy |
 | C6 | **Analytics live source** | submissions exist | live integration supersedes demo profiles | Resolved locally; consolidate in production DB |
-| C7 | **Difficulty vocabulary mismatch** | `easy` / `medium` / `hard` | `supportive` / `balanced` / `challenging` | Low/Medium — must unify one difficulty enum before shared generation maps seeds to assignments |
+| C7 | **Difficulty vocabulary** | `easy` / `medium` / `hard` | `easy` / `medium` / `hard` | Resolved; existing Teacher SQLite values are migrated on startup |
 
 ---
 

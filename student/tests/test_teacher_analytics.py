@@ -7,7 +7,9 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from db.models import Assignment, Base, ChatMessage, Course, CourseMaterial, Student, Submission
+from db.models import (
+    Assignment, Base, ChatMessage, Course, CourseMaterial, Enrollment, Student, Submission
+)
 from services.teacher_analytics import build_teacher_feed
 from api.routers.integration import (
     override_grade,
@@ -15,15 +17,18 @@ from api.routers.integration import (
     publish_assignment,
     require_teacher_integration,
     sync_material,
+    retrieve_rag_context,
 )
 from api.schemas.integration import (
     AssignmentPublishRequest,
     GradeOverrideRequest,
     MaterialSyncRequest,
+    RagRetrieveRequest,
 )
-from api.schemas.assignments import SubmitRequest
-from api.routers.assignments import submit_answer
-from api.routers.students import _memory
+from api.schemas.assignments import BatchAnswer, BatchSubmissionRequest, SubmitRequest
+from api.routers.assignments import create_batch_submissions, submit_answer
+from api.routers.chat import get_history
+from api.routers.students import _memory, my_courses
 
 
 class TeacherAnalyticsFeedTest(unittest.TestCase):
@@ -198,6 +203,70 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
         self.assertEqual(result.ingestion_status, "ready_lexical")
         self.assertGreater(result.chunk_count, 0)
         self.assertEqual(self.db.query(CourseMaterial).count(), 1)
+        retrieved = retrieve_rag_context(
+            RagRetrieveRequest(
+                external_course_id="course-1",
+                query="retrieved course evidence",
+                top_k=3,
+            ),
+            self.db,
+        )
+        self.assertTrue(retrieved.chunks)
+        self.assertEqual(retrieved.chunks[0].source, "Grounding notes")
+
+    def test_chat_history_and_course_list_are_enrollment_scoped(self):
+        student = self.db.query(Student).filter(Student.student_code == "s1").one()
+        course_a = Course(external_key="chat-a", title="Course A", term="2026")
+        course_b = Course(external_key="chat-b", title="Course B", term="2026")
+        self.db.add_all([course_a, course_b])
+        self.db.flush()
+        self.db.add_all([
+            Enrollment(course_id=course_a.id, student_id=student.id, status="active"),
+            Enrollment(course_id=course_b.id, student_id=student.id, status="active"),
+            ChatMessage(student_id=student.id, course_id=course_a.id, role="user", content="A"),
+            ChatMessage(student_id=student.id, course_id=course_b.id, role="user", content="B"),
+        ])
+        self.db.commit()
+
+        courses = my_courses(student, self.db)
+        self.assertEqual({course.external_course_id for course in courses}, {"chat-a", "chat-b"})
+        history = get_history(50, "chat-a", None, student, self.db)
+        self.assertEqual([message.content for message in history.messages], ["A"])
+
+    @patch("api.routers.assignments.bedrock_client.invoke_json")
+    def test_batch_submission_grades_every_answer(self, invoke_json):
+        invoke_json.return_value = {
+            "score": 80,
+            "feedback": "Good",
+            "missing_concepts": [],
+            "teacher_error_pattern": None,
+        }
+        student = self.db.query(Student).filter(Student.student_code == "s1").one()
+        assignments = [
+            Assignment(
+                student_id=student.id,
+                topic=f"Batch {index}",
+                difficulty="medium",
+                question_text=f"Question {index}",
+                correct_answer="Answer",
+                explanation="Explanation",
+                question_type="short_answer",
+            )
+            for index in (1, 2)
+        ]
+        self.db.add_all(assignments)
+        self.db.commit()
+        result = create_batch_submissions(
+            BatchSubmissionRequest(answers=[
+                BatchAnswer(assignment_id=item.id, answer_text="My answer")
+                for item in assignments
+            ]),
+            student,
+            self.db,
+        )
+        self.assertEqual(len(result.submissions), 2)
+        self.assertEqual(result.total_score, 160)
+        self.assertEqual(result.max_score, 200)
 
     def test_grade_override_preserves_auto_grade(self):
         publish = AssignmentPublishRequest(
