@@ -19,7 +19,6 @@ def render():
             f"<h1 style='text-align: center;'>{t('teacher_login')}</h1>",
             unsafe_allow_html=True,
         )
-        st.markdown(t("login_intro"))
 
         with st.form("teacher_login"):
             teacher_code = st.text_input(t("teacher_id"), value="t2024001")

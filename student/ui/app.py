@@ -25,14 +25,19 @@ st.markdown("""
   background: linear-gradient(90deg, #2d0b78, #4b1ba8); color: white;
 }
 a { color: var(--classpilot-teal) !important; }
+[data-testid="stSidebarCollapseButton"], [data-testid="stExpandSidebarButton"], [data-testid="collapsedControl"] {
+  display: none !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
+from ui import i18n
 from ui.components import sidebar
 from ui.views import assignment, dashboard, login, ta_chat
 
 # Streamlit keeps imported modules in memory between reruns. Reload view modules
 # so UI-only edits are reflected immediately during local development.
+reload(i18n)
 for _view_module in (sidebar, assignment, dashboard, login, ta_chat):
     reload(_view_module)
 

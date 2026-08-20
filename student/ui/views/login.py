@@ -22,7 +22,6 @@ def render():
             f"<h1 style='text-align: center;'>{t('login_title')}</h1>",
             unsafe_allow_html=True,
         )
-        st.markdown(t("login_instruction"))
 
         with st.form("login_form"):
             student_code = st.text_input(t("student_id"), value="s2024001")
@@ -55,4 +54,7 @@ def render():
 
     with center:
         st.divider()
-        st.caption(t("demo_account"))
+        st.markdown(f"**{t('demo_accounts')}**")
+        st.markdown("- `s2024001 / demo123` — 田中太郎")
+        st.markdown("- `s2024002 / demo123` — 鈴木花子")
+        st.markdown("- `s2024003 / demo123` — 佐藤健二")

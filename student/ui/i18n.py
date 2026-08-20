@@ -13,8 +13,7 @@ TRANSLATIONS = {
     "language": {"ja": "言語", "en": "Language"},
 
     # ── Login ─────────────────────────────────────────────
-    "login_title": {"ja": "ログイン", "en": "Login"},
-    "login_instruction": {"ja": "学生IDとパスワードを入力してください。", "en": "Enter your student ID and password."},
+    "login_title": {"ja": "Student Login", "en": "Student Login"},
     "student_id": {"ja": "学生ID", "en": "Student ID"},
     "password": {"ja": "パスワード", "en": "Password"},
     "login_button": {"ja": "ログイン", "en": "Login"},
@@ -22,7 +21,7 @@ TRANSLATIONS = {
     "login_failed": {"ja": "ログインに失敗しました。", "en": "Login failed."},
     "login_connect_error": {"ja": "APIサーバーに接続できません。サーバーが起動しているか確認してください。", "en": "Cannot connect to the API server. Please check if the server is running."},
     "login_error": {"ja": "エラーが発生しました", "en": "An error occurred"},
-    "demo_account": {"ja": "デモアカウント: s2024001 / demo123", "en": "Demo account: s2024001 / demo123"},
+    "demo_accounts": {"ja": "デモアカウント", "en": "Demo Accounts"},
 
     # ── Assignments ───────────────────────────────────────
     "assignments_title": {"ja": "課題", "en": "Assignments"},
