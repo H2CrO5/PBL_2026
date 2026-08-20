@@ -94,14 +94,15 @@ Read-only DB inspection: `/admin/db/students`, `/db/lectures`, `/db/assignments`
 | POST | `/integrations/teacher/materials/sync` | `X-Integration-Token` | course RAG ingestion |
 | POST | `/integrations/teacher/submissions/{id}/override` | `X-Integration-Token` | grade correction |
 
-This service boundary exposes real Student submission aggregates and tightly
+This service boundary exposes Student submission aggregates and tightly
 scoped Teacher writes. It never exposes password
-hashes, login sessions, or correct answers. Seed and synthetic submissions are
-excluded from live analytics. The shared `TEACHER_INTEGRATION_TOKEN` must be
+hashes, login sessions, or correct answers. Initial seed answers are included
+with `source="seed"` and are read-only in Teacher; synthetic evaluation rows
+remain excluded. The shared `TEACHER_INTEGRATION_TOKEN` must be
 configured in both processes; when absent, the endpoint returns 503.
 
 `TeacherAnalyticsFeed` contains `data_source`, `generated_at`, per-student
-average/completion/weak/strong topics, recent submissions, recent TA Bot
+average/completion/weak/strong topics, recent submissions with their source, recent TA Bot
 questions and class score trend, plus per-topic attempt counts and wrong rates.
 
 ---

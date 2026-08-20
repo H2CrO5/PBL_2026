@@ -3,11 +3,14 @@
 from db.models import Submission
 
 
-def latest_attempts(submissions: list[Submission]) -> list[Submission]:
-    """Use only the newest graded real attempt for each assignment."""
+def latest_attempts(
+    submissions: list[Submission],
+    allowed_sources: tuple[str, ...] = ("real",),
+) -> list[Submission]:
+    """Use the newest graded attempt per assignment from the allowed sources."""
     latest: dict[int, Submission] = {}
     for submission in submissions:
-        if submission.source != "real" or submission.status != "graded":
+        if submission.source not in allowed_sources or submission.status != "graded":
             continue
         current = latest.get(submission.assignment_id)
         if current is None or (

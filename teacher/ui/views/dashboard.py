@@ -15,9 +15,10 @@ def render():
         return
 
     st.caption(summary["course_title"])
+    data_source = summary.get("data_source")
     source_label = (
-        t("live_submissions")
-        if summary.get("data_source") == "student-real-submissions"
+        t("submissions_with_seed") if data_source == "student-submissions-including-seed"
+        else t("live_submissions") if data_source == "student-real-submissions"
         else t("demo_data_unconfigured")
     )
     st.caption(t("data_source", source=source_label))

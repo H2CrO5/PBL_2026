@@ -25,6 +25,8 @@ TRANSLATIONS = {
     "demo_account": {"en": "Demo account: t2024001 / demo123", "ja": "デモアカウント: t2024001 / demo123"},
     "data_source": {"en": "Data source: {source}", "ja": "データソース: {source}"},
     "live_submissions": {"en": "Live Student submissions", "ja": "Student側の実提出データ"},
+    "submissions_with_seed": {"en": "Student submissions (including labeled sample answers)", "ja": "Student提出データ（初期サンプル回答を含む）"},
+    "sample_answer": {"en": "Initial sample answer · read only", "ja": "初期サンプル回答・読み取り専用"},
     "demo_data": {"en": "Demo analytics data", "ja": "デモ分析データ"},
     "demo_data_unconfigured": {"en": "Demo analytics data (Student integration is not configured)", "ja": "デモ分析データ（Student連携は未設定です）"},
     "average_score": {"en": "Average Score", "ja": "平均スコア"},

@@ -17,6 +17,7 @@ class RecentSubmissionResponse(BaseModel):
     feedback: str
     attempt_number: int = 1
     grading_source: str = "auto"
+    source: str = "real"
     missing_concepts: list[str] = Field(default_factory=list)
     teacher_error_pattern: str | None = None
     submitted_at: datetime

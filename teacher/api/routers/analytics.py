@@ -40,7 +40,7 @@ def _analytics_records(db: DBSession, course: Course):
         ) from exc
     if feed is not None:
         students, concepts, generated_at = student_data.teacher_records(feed)
-        return students, concepts, "student-real-submissions", generated_at, feed.get("score_trend", [])
+        return students, concepts, feed.get("data_source", "student-real-submissions"), generated_at, feed.get("score_trend", [])
     if not config.DEMO_MODE:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
