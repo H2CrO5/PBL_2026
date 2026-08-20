@@ -29,6 +29,7 @@ from api.schemas.assignments import BatchAnswer, BatchSubmissionRequest, SubmitR
 from api.routers.assignments import create_batch_submissions, submit_answer
 from api.routers.chat import get_history
 from api.routers.students import _memory, my_courses
+from api.dependencies import get_current_student
 
 
 class TeacherAnalyticsFeedTest(unittest.TestCase):
@@ -122,6 +123,11 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
             with self.assertRaises(HTTPException) as raised:
                 require_teacher_integration("wrong")
             self.assertEqual(raised.exception.status_code, 401)
+
+    def test_missing_student_authorization_returns_401(self):
+        with self.assertRaises(HTTPException) as raised:
+            get_current_student(None, self.db)
+        self.assertEqual(raised.exception.status_code, 401)
 
     def test_assignment_publish_is_idempotent(self):
         request = AssignmentPublishRequest(

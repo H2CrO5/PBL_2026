@@ -10,11 +10,11 @@ from db.models import Session, Student
 
 
 def get_current_student(
-    authorization: str = Header(..., description="Bearer token"),
+    authorization: str | None = Header(None, description="Bearer token"),
     db: DBSession = Depends(get_db),
 ) -> Student:
     """Extract and validate the session token, returning the authenticated student."""
-    if not authorization.startswith("Bearer "):
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authorization header must start with 'Bearer '",
