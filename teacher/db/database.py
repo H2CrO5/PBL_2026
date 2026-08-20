@@ -39,6 +39,11 @@ def create_tables():
         connection.execute(text(
             "UPDATE materials SET external_key = 'material-' || id WHERE external_key IS NULL"
         ))
+        # Keep existing local demo databases aligned with the current UI seed.
+        connection.execute(text(
+            "UPDATE teachers SET name = '東北一郎' "
+            "WHERE teacher_code = 't2024001' AND name = 'Professor Demo'"
+        ))
 
 
 def get_db():

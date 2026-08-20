@@ -26,7 +26,7 @@ def render():
         with st.form("login_form"):
             student_code = st.text_input(t("student_id"), value="s2024001")
             password = st.text_input(t("password"), type="password", value="demo123")
-            submitted = st.form_submit_button(t("login_button"), use_container_width=True)
+            submitted = st.form_submit_button(t("login_button"), width="stretch")
 
     if submitted:
         if not student_code or not password:

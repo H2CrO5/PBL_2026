@@ -4,8 +4,8 @@ import streamlit as st
 
 TRANSLATIONS = {
     # ── App / Sidebar ─────────────────────────────────────
-    "app_title": {"ja": "学習支援システム", "en": "Learning Support System"},
-    "page_label": {"ja": "ページ", "en": "Page"},
+    "role_label": {"ja": "Student", "en": "Student"},
+    "navigation": {"ja": "ナビゲーション", "en": "Navigation"},
     "page_dashboard": {"ja": "ダッシュボード", "en": "Dashboard"},
     "page_assignments": {"ja": "課題", "en": "Assignments"},
     "page_ta_bot": {"ja": "TA Bot", "en": "TA Bot"},

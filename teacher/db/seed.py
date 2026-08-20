@@ -238,7 +238,7 @@ def seed():
 
         teacher = Teacher(
             teacher_code="t2024001",
-            name="Professor Demo",
+            name="東北一郎",
             password_hash=_hash_password("demo123"),
         )
         db.add(teacher)

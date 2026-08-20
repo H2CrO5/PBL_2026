@@ -44,4 +44,5 @@ def render():
 
     with center:
         st.divider()
-        st.caption(t("demo_account"))
+        st.markdown(f"**{t('demo_accounts')}**")
+        st.markdown("- `t2024001 / demo123` — 東北一郎")

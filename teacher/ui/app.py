@@ -40,7 +40,7 @@ a { color: var(--classpilot-teal) !important; }
 if "token" not in st.session_state:
     st.session_state.token = None
 if "teacher_lang" not in st.session_state:
-    st.session_state.teacher_lang = "en"
+    st.session_state.teacher_lang = "ja"
 
 # Remove the entire sidebar on the login screen. It returns after login.
 if not st.session_state.token:
@@ -55,7 +55,7 @@ if not st.session_state.token:
 
 _lang_left, _lang_right = st.columns([5, 1])
 with _lang_right:
-    _languages = {"en": "English", "ja": "日本語"}
+    _languages = {"ja": "日本語", "en": "English"}
     _current_lang = st.session_state.teacher_lang
     _selected_lang = st.selectbox(
         "Language",
@@ -66,6 +66,11 @@ with _lang_right:
         key="teacher_language_selector",
     )
     if _selected_lang != _current_lang:
+        st.session_state.teacher_page = st.session_state.get(
+            f"teacher_navigation_{_current_lang}",
+            st.session_state.get("teacher_page", "dashboard"),
+        )
+        st.session_state.pop(f"teacher_navigation_{_selected_lang}", None)
         st.session_state.teacher_lang = _selected_lang
         st.rerun()
 
