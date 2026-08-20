@@ -10,12 +10,14 @@ import streamlit as st
 
 BRAND_ICON = Path(__file__).resolve().parents[2] / "assets" / "branding" / "classpilot-favicon.png"
 
-from ui.components.sidebar import render_sidebar
+from ui import i18n
+from ui.components import sidebar
 from ui.views import analytics, assignment, dashboard, login, materials, students
 
 # Streamlit keeps imported modules in memory between reruns. Reload view modules
 # so language and UI edits are reflected immediately during local development.
-for _view_module in (analytics, assignment, dashboard, login, materials, students):
+reload(i18n)
+for _view_module in (sidebar, analytics, assignment, dashboard, login, materials, students):
     reload(_view_module)
 
 st.set_page_config(
@@ -32,6 +34,9 @@ st.markdown("""
   background: linear-gradient(90deg, #2d0b78, #4b1ba8); color: white;
 }
 a { color: var(--classpilot-teal) !important; }
+[data-testid="stSidebarCollapseButton"], [data-testid="stExpandSidebarButton"], [data-testid="collapsedControl"] {
+  display: none !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -56,7 +61,7 @@ with _lang_right:
         st.session_state.teacher_lang = _selected_lang
         st.rerun()
 
-page = render_sidebar()
+page = sidebar.render_sidebar()
 
 if page == "login":
     login.render()
