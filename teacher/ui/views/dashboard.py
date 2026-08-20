@@ -4,7 +4,7 @@ import plotly.express as px
 import streamlit as st
 
 from ui.api_client import get
-from ui.i18n import t
+from ui.i18n import localize_text, t, tv
 
 
 def render():
@@ -34,10 +34,10 @@ def render():
         st.subheader(t("action_list"))
         for action in actions:
             with st.container(border=True):
-                st.caption(action["priority"].upper())
-                st.markdown(f"**{action['title']}**")
-                st.markdown(action["reason"])
-                st.markdown(t("next_step", step=action["next_step"]))
+                st.caption(tv(action["priority"]))
+                st.markdown(f"**{localize_text(action['title'])}**")
+                st.markdown(localize_text(action["reason"]))
+                st.markdown(t("next_step", step=localize_text(action["next_step"])))
 
     if summary.get("score_trend"):
         st.subheader(t("score_trend"))
@@ -58,9 +58,12 @@ def render():
 
     weak = summary["weak_concepts"]
     if weak:
+        display_weak = [
+            {**item, "concept": localize_text(item["concept"])} for item in weak
+        ]
         st.subheader(t("weak_concepts"))
         fig = px.bar(
-            weak,
+            display_weak,
             x="concept",
             y="wrong_rate",
             text="wrong_rate",
@@ -73,4 +76,4 @@ def render():
 
         st.subheader(t("lecture_focus"))
         for item in weak[:3]:
-            st.markdown(f"- **{item['concept']}**: {item['recommended_focus']}")
+            st.markdown(f"- **{localize_text(item['concept'])}**: {localize_text(item['recommended_focus'])}")

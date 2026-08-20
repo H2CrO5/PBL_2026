@@ -3,7 +3,7 @@
 import streamlit as st
 
 from ui.api_client import get, post, post_file
-from ui.i18n import t
+from ui.i18n import t, tv
 
 
 def render():
@@ -19,16 +19,18 @@ def render():
             st.info(t("no_lectures"))
         else:
             lecture_labels = {
-                f"Lecture {lec['lecture_number']}: {lec['title']}": lec["id"]
+                t("lecture_label", number=lec["lecture_number"], title=lec["title"]): lec["id"]
                 for lec in lectures
             }
             with st.form("add_material"):
                 selected = st.selectbox(t("lecture"), list(lecture_labels.keys()))
-                title = st.text_input(t("title"), value="Teacher note: Evidence checklist")
-                material_type = st.selectbox(t("type"), ["note", "slide", "book"])
+                title = st.text_input(t("title"), value=t("default_material_title"))
+                material_type = st.selectbox(
+                    t("type"), ["note", "slide", "book"], format_func=tv
+                )
                 content = st.text_area(
                     t("content"),
-                    value="Students should verify whether each generated answer claim is supported by a retrieved source passage.",
+                    value=t("default_material_content"),
                     height=160,
                 )
                 submitted = st.form_submit_button(t("add_material"), width="stretch")
@@ -68,7 +70,7 @@ def render():
                         },
                     )
                     if result:
-                        st.success(t("uploaded", status=result["ingestion_status"]))
+                        st.success(t("uploaded", status=tv(result["ingestion_status"])))
                         st.rerun()
 
     st.subheader(t("current_materials"))
@@ -89,8 +91,8 @@ def render():
             col1, col2, col3 = st.columns([2, 1, 1])
             col1.markdown(f"**{material['title']}**")
             col1.caption(material["lecture_title"])
-            col2.code(material["material_type"])
-            col3.success(material["ingestion_status"])
+            col2.code(tv(material["material_type"]))
+            col3.success(tv(material["ingestion_status"]))
             st.caption(material["content_preview"])
             if st.button(
                 t("sync_rag"),
@@ -100,6 +102,6 @@ def render():
                 result = post(f"/materials/{material['id']}/sync", {}, timeout=120.0)
                 if result:
                     st.success(
-                        t("indexed", chunks=result["chunk_count"], status=result["ingestion_status"])
+                        t("indexed", chunks=result["chunk_count"], status=tv(result["ingestion_status"]))
                     )
                     st.rerun()

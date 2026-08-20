@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from ui.api_client import get, post
-from ui.i18n import t
+from ui.i18n import localize_text, t, tv
 
 
 def render():
@@ -26,8 +26,8 @@ def render():
             t("student"): f"{item['name']} ({item['student_code']})",
             t("average_score"): item["average_score"],
             t("completion"): item["completion_rate"],
-            t("weak_topics"): ", ".join(item["weak_topics"]),
-            t("recommended_action"): item["recommended_action"],
+            t("weak_topics"): ", ".join(localize_text(topic) for topic in item["weak_topics"]),
+            t("recommended_action"): localize_text(item["recommended_action"]),
         }
         for item in insights
     ]
@@ -41,11 +41,11 @@ def render():
     col2.metric(t("completion"), f"{item['completion_rate']:.1f}%")
     st.markdown(f"**{t('strong_topics')}**")
     for topic in item["strong_topics"]:
-        st.markdown(f"- {topic}")
+        st.markdown(f"- {localize_text(topic)}")
     st.markdown(f"**{t('weak_topics')}**")
     for topic in item["weak_topics"]:
-        st.markdown(f"- {topic}")
-    st.info(item["recommended_action"])
+        st.markdown(f"- {localize_text(topic)}")
+    st.info(localize_text(item["recommended_action"]))
 
     st.subheader(t("recent_questions"))
     if item.get("chat_summary"):
@@ -75,7 +75,11 @@ def render():
                     f"**{t('error_pattern')}:** {submission['teacher_error_pattern']}"
                 )
             st.caption(
-                t("attempt_grading", attempt=submission.get("attempt_number", 1), source=submission.get("grading_source", "auto"))
+                t(
+                    "attempt_grading",
+                    attempt=submission.get("attempt_number", 1),
+                    source=tv(submission.get("grading_source", "auto")),
+                )
             )
             if submission.get("source") == "seed":
                 st.caption(t("sample_answer"))

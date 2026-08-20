@@ -3,7 +3,7 @@
 import streamlit as st
 
 from ui.api_client import get, post
-from ui.i18n import t
+from ui.i18n import localize_text, t, tv
 
 
 def _rubric_items(raw_text: str) -> list[str]:
@@ -11,17 +11,17 @@ def _rubric_items(raw_text: str) -> list[str]:
 
 
 def _show_seed(seed: dict):
-    seed_label = seed["seed_type"].replace("_", " ").title()
-    st.markdown(f"**{seed['title']}**")
-    st.caption(f"{seed_label} | {seed['difficulty']} | {seed['target_concept']} | {seed.get('lecture_title') or t('no_lecture')}")
-    st.markdown(seed["question_text"])
+    seed_label = tv(seed["seed_type"])
+    st.markdown(f"**{localize_text(seed['title'])}**")
+    st.caption(f"{seed_label} | {tv(seed['difficulty'])} | {localize_text(seed['target_concept'])} | {seed.get('lecture_title') or t('no_lecture')}")
+    st.markdown(localize_text(seed["question_text"]))
     with st.expander(t("answer_rubric")):
-        st.markdown(f"**{t('expected_answer')}:** {seed['expected_answer']}")
+        st.markdown(f"**{t('expected_answer')}:** {localize_text(seed['expected_answer'])}")
         st.markdown(f"**{t('rubric')}:**")
         for item in seed["rubric"]:
-            st.markdown(f"- {item}")
+            st.markdown(f"- {localize_text(item)}")
         if seed.get("notes"):
-            st.markdown(f"**{t('notes')}:** {seed['notes']}")
+            st.markdown(f"**{t('notes')}:** {localize_text(seed['notes'])}")
 
 
 def _control_notes(scope: str, variation_policy: str, priority: str, notes: str) -> str:
@@ -44,7 +44,10 @@ def render():
         st.info(t("no_course_materials"))
         return
 
-    lecture_labels = {f"Lecture {item['lecture_number']}: {item['title']}": item for item in lectures}
+    lecture_labels = {
+        t("lecture_label", number=item["lecture_number"], title=item["title"]): item
+        for item in lectures
+    }
     selected_label = st.selectbox(t("lecture"), list(lecture_labels.keys()))
     selected_lecture = lecture_labels[selected_label]
 
@@ -65,9 +68,9 @@ def render():
         st.caption(readiness_label)
         for check in context["readiness_checks"]:
             with st.container(border=True):
-                st.markdown(f"**{check['name']}**")
-                st.caption(check["status"].upper())
-                st.markdown(check["detail"])
+                st.markdown(f"**{localize_text(check['name'])}**")
+                st.caption(tv(check["status"]))
+                st.markdown(localize_text(check["detail"]))
         generation_concept = st.text_input(
             t("target_concept"),
             value=context["weak_concepts"][0] if context["weak_concepts"] else selected_lecture["title"],
@@ -75,13 +78,14 @@ def render():
         )
         generation_goal = st.text_input(
             t("assignment_goal"),
-            value="Check conceptual understanding using course evidence",
+            value=t("default_assignment_goal"),
             key=f"generation_goal_{selected_lecture['id']}",
         )
         generation_difficulty = st.selectbox(
             t("difficulty"),
             ["supportive", "balanced", "challenging"],
             index=1,
+            format_func=tv,
             key=f"generation_difficulty_{selected_lecture['id']}",
         )
         generation_count = st.number_input(
@@ -125,16 +129,22 @@ def render():
 
     with st.form("create_question_seed"):
         st.subheader(t("add_seed"))
-        title = st.text_input(t("title"), value=f"{selected_lecture['title']} checkpoint")
+        title = st.text_input(
+            t("title"), value=t("checkpoint_title", lecture=selected_lecture["title"])
+        )
         target_concept = st.text_input(t("target_concept"), value=context["weak_concepts"][0] if context and context["weak_concepts"] else "")
         col1, col2 = st.columns(2)
-        seed_type = col1.selectbox(t("seed_type"), ["base", "required", "rubric_seed"])
-        difficulty = col2.selectbox(t("difficulty"), ["supportive", "balanced", "challenging"], index=1)
+        seed_type = col1.selectbox(
+            t("seed_type"), ["base", "required", "rubric_seed"], format_func=tv
+        )
+        difficulty = col2.selectbox(
+            t("difficulty"), ["supportive", "balanced", "challenging"], index=1, format_func=tv
+        )
         question_text = st.text_area(t("question"), height=120)
         expected_answer = st.text_area(t("expected_answer"), height=100)
         rubric_text = st.text_area(
             t("rubric"),
-            value="Correctly identifies inputs and outputs\nHandles the edge case\nExplains the reasoning clearly",
+            value=t("default_rubric"),
             height=100,
         )
         points_col, attempts_col = st.columns(2)
@@ -143,9 +153,15 @@ def render():
             t("max_attempts"), min_value=1, max_value=10, value=1
         )
         control_col1, control_col2, control_col3 = st.columns(3)
-        assessment_scope = control_col1.selectbox(t("assessment_scope"), ["practice_only", "formative_checkpoint", "exam_relevant"], index=1)
-        variation_policy = control_col2.selectbox(t("variation_policy"), ["allow_variants", "teacher_review_required", "do_not_generate_variants"], index=1)
-        teacher_priority = control_col3.selectbox(t("teacher_priority"), ["normal", "high", "critical"])
+        assessment_scope = control_col1.selectbox(
+            t("assessment_scope"), ["practice_only", "formative_checkpoint", "exam_relevant"], index=1, format_func=tv
+        )
+        variation_policy = control_col2.selectbox(
+            t("variation_policy"), ["allow_variants", "teacher_review_required", "do_not_generate_variants"], index=1, format_func=tv
+        )
+        teacher_priority = control_col3.selectbox(
+            t("teacher_priority"), ["normal", "high", "critical"], format_func=tv
+        )
         notes = st.text_area(t("internal_notes"), height=80)
         submitted = st.form_submit_button(t("save_seed"), width="stretch")
 
@@ -181,30 +197,30 @@ def render():
             for material in context["materials"]:
                 st.markdown(
                     f"- #{material['id']} {material['title']} "
-                    f"({material['material_type']}, {material['ingestion_status']})"
+                    f"({tv(material['material_type'])}, {tv(material['ingestion_status'])})"
                 )
         with right:
             st.markdown(f"**{t('current_weak')}**")
             for concept in context["weak_concepts"]:
-                st.markdown(f"- {concept}")
+                st.markdown(f"- {localize_text(concept)}")
 
     if context and context["question_seed_candidates"]:
         st.divider()
         st.subheader(t("candidate_seeds"))
         for index, candidate in enumerate(context["question_seed_candidates"]):
             with st.container(border=True):
-                st.markdown(f"**{candidate['title']}**")
+                st.markdown(f"**{localize_text(candidate['title'])}**")
                 st.caption(
-                    f"{candidate['seed_type']} | {candidate['difficulty']} | "
-                    f"{candidate['assessment_scope']} | {candidate['variation_policy']}"
+                    f"{tv(candidate['seed_type'])} | {tv(candidate['difficulty'])} | "
+                    f"{tv(candidate['assessment_scope'])} | {tv(candidate['variation_policy'])}"
                 )
-                st.markdown(candidate["question_text"])
+                st.markdown(localize_text(candidate["question_text"]))
                 with st.expander(t("candidate_details")):
-                    st.markdown(f"**{t('expected_answer')}:** {candidate['expected_answer']}")
+                    st.markdown(f"**{t('expected_answer')}:** {localize_text(candidate['expected_answer'])}")
                     st.markdown(f"**{t('rubric')}:**")
                     for item in candidate["rubric"]:
-                        st.markdown(f"- {item}")
-                    st.markdown(f"**{t('rationale')}:** {candidate['rationale']}")
+                        st.markdown(f"- {localize_text(item)}")
+                    st.markdown(f"**{t('rationale')}:** {localize_text(candidate['rationale'])}")
                 if st.button(t("save_candidate"), key=f"save_candidate_{selected_lecture['id']}_{index}", width="stretch"):
                     saved = post("/questions", {
                         "course_id": summary["course_id"],

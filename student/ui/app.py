@@ -61,13 +61,17 @@ with _lang_bar_right:
     lang_options = {"ja": "日本語", "en": "English"}
     current = st.session_state.get("lang", "ja")
     selected = st.selectbox(
-        "Lang",
+        "Language",
         options=list(lang_options.keys()),
         format_func=lambda x: lang_options[x],
         index=list(lang_options.keys()).index(current),
         label_visibility="collapsed",
     )
     if selected != current:
+        st.session_state.student_page = st.session_state.get(
+            f"student_navigation_{current}", st.session_state.get("student_page", "dashboard")
+        )
+        st.session_state.pop(f"student_navigation_{selected}", None)
         st.session_state.lang = selected
         st.rerun()
 
