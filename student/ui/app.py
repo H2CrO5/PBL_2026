@@ -44,10 +44,11 @@ if "token" not in st.session_state:
 if "lang" not in st.session_state:
     st.session_state.lang = "ja"
 
-# Keep the login screen uncluttered. Sidebar controls return after login.
+# Remove the entire sidebar on the login screen. It returns after login.
 if not st.session_state.token:
     st.markdown("""
     <style>
+    [data-testid="stSidebar"] { display: none !important; }
     [data-testid="stSidebarCollapseButton"],
     [data-testid="stExpandSidebarButton"],
     [data-testid="collapsedControl"] { display: none !important; }
