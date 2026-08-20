@@ -28,8 +28,9 @@ Student real submission
 
 Configure both applications with the same `TEACHER_INTEGRATION_TOKEN` and set
 `STUDENT_API_BASE_URL` for the Teacher process. The endpoint is read-only,
-service-authenticated, excludes seed/synthetic submissions, and does not expose
-credentials or correct answers. If integration is configured but unavailable,
+service-authenticated, includes clearly labeled initial seed answers for the
+enrolled demo students, excludes synthetic evaluation rows, and does not expose
+credentials or correct answers. Seed answers are read-only in Teacher. If integration is configured but unavailable,
 Teacher returns 503 instead of silently displaying demo values.
 
 Student now stores explicit courses and enrollments keyed by the Teacher

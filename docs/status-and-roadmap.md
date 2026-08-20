@@ -31,8 +31,9 @@ Related documents:
 | **Evaluation** | Cross-cutting | Grading, generation, TA grounding, and analytics gates run offline and in CI. |
 
 Summary: Student and Teacher are connected locally. Teacher materials feed
-course-scoped RAG, reviewed questions publish to Student, real submissions drive
-analytics, and grade corrections flow back with audit history.
+course-scoped RAG, reviewed questions publish to Student, and Student answers
+drive analytics. Initial sample answers are labeled/read-only; grade corrections
+for real submissions flow back with audit history.
 
 ---
 
@@ -82,7 +83,7 @@ The original plan places LLM evaluation in Phase 6 (the end). We **promote it to
 
 ## 5. Local MVP completion and production boundary
 
-- [x] Teacher analytics computed from real `submissions`, excluding seed/synthetic rows.
+- [x] Teacher analytics computed from Student answers; initial samples are clearly labeled/read-only and synthetic evaluation rows are excluded.
 - [x] Shared-compatible assignment, submission, memory, history, chat, material and analytics routes.
 - [x] Grounded assignment generation and grading through Bedrock backend services.
 - [x] Shared RAG fed by Teacher materials and used by Student grading/TA Bot.

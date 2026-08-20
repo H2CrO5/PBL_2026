@@ -35,7 +35,7 @@ def get_student_insights(
     if feed is not None:
         students, _, _ = student_data.teacher_records(feed)
         students.sort(key=lambda student: student.average_score)
-        data_source = "student-real-submissions"
+        data_source = feed.get("data_source", "student-real-submissions")
     else:
         if not config.DEMO_MODE:
             raise HTTPException(
@@ -85,6 +85,7 @@ def override_submission_grade(
             item["submission_id"]
             for student in feed.get("students", [])
             for item in student.get("recent_submissions", [])
+            if item.get("source", "real") == "real"
         }
         if submission_id not in allowed_ids:
             raise HTTPException(status_code=404, detail="Submission not found in this course")

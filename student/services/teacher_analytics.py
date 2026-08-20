@@ -1,9 +1,10 @@
-"""Build a privacy-scoped Teacher feed from real Student submissions."""
+"""Build a privacy-scoped Teacher feed from real and labeled seed answers."""
 
 from collections import defaultdict
 from datetime import datetime, timezone
 import json
 
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session as DBSession
 
 from db.models import Assignment, ChatMessage, Course, Enrollment, Student, Submission
@@ -16,7 +17,7 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
         course = db.query(Course).filter(Course.external_key == external_course_id).first()
         if course is None:
             return {
-                "data_source": "student-real-submissions",
+                "data_source": "student-submissions-including-seed",
                 "generated_at": datetime.now(timezone.utc),
                 "external_course_id": external_course_id,
                 "students": [],
@@ -36,27 +37,44 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
     class_days: dict[str, list[float]] = defaultdict(list)
 
     for student in students:
-        total_assignments = (
-            db.query(Assignment).filter(
+        current_assignment_ids = {
+            row.id
+            for row in db.query(Assignment.id).filter(
                 Assignment.student_id == student.id,
                 *([Assignment.course_id == course.id] if course else []),
-            ).count()
-        )
-        all_real_submissions = (
+            ).all()
+        }
+        seed_assignment_ids = {
+            row.assignment_id
+            for row in db.query(Submission.assignment_id).filter(
+                Submission.student_id == student.id,
+                Submission.source == "seed",
+            ).distinct().all()
+        }
+        total_assignments = len(current_assignment_ids | seed_assignment_ids)
+        submissions_query = (
             db.query(Submission)
             .join(Assignment, Submission.assignment_id == Assignment.id)
             .filter(
                 Submission.student_id == student.id,
-                Submission.source == "real",
-                *([Assignment.course_id == course.id] if course else []),
             )
-            .order_by(Submission.submitted_at.desc())
-            .all()
         )
-        real_submissions = latest_attempts(all_real_submissions)
+        if course:
+            submissions_query = submissions_query.filter(or_(
+                and_(Submission.source == "real", Assignment.course_id == course.id),
+                Submission.source == "seed",
+            ))
+        else:
+            submissions_query = submissions_query.filter(
+                Submission.source.in_(("real", "seed"))
+            )
+        submissions = latest_attempts(
+            submissions_query.order_by(Submission.submitted_at.desc()).all(),
+            allowed_sources=("real", "seed"),
+        )
 
         topic_scores: dict[str, list[float]] = defaultdict(list)
-        for submission in real_submissions:
+        for submission in submissions:
             topic = submission.assignment.topic
             topic_scores[topic].append(submission.score)
             class_topics[topic].append(submission)
@@ -73,18 +91,18 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
         topic_averages = {
             topic: sum(scores) / len(scores) for topic, scores in topic_scores.items()
         }
-        scores = [submission.score for submission in real_submissions]
+        scores = [submission.score for submission in submissions]
         student_rows.append({
             "student_id": student.id,
             "student_code": student.student_code,
             "name": student.name,
             "average_score": round(sum(scores) / len(scores), 1) if scores else 0.0,
             "completion_rate": (
-                round(100.0 * len(real_submissions) / total_assignments, 1)
+                round(100.0 * len(submissions) / total_assignments, 1)
                 if total_assignments else 0.0
             ),
             "total_assignments": total_assignments,
-            "total_submissions": len(real_submissions),
+            "total_submissions": len(submissions),
             "strong_topics": sorted(
                 topic for topic, average in topic_averages.items() if average >= 80
             ),
@@ -104,11 +122,12 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
                     "feedback": submission.feedback,
                     "attempt_number": submission.attempt_number,
                     "grading_source": submission.grading_source,
+                    "source": submission.source,
                     "missing_concepts": json.loads(submission.missing_concepts or "[]"),
                     "teacher_error_pattern": submission.teacher_error_pattern,
                     "submitted_at": submission.submitted_at,
                 }
-                for submission in real_submissions[:10]
+                for submission in submissions[:10]
             ],
             "chat_summary": [message.content[:240] for message in recent_questions],
         })
@@ -139,7 +158,7 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
     ]
 
     return {
-        "data_source": "student-real-submissions",
+        "data_source": "student-submissions-including-seed",
         "generated_at": datetime.now(timezone.utc),
         "external_course_id": external_course_id,
         "students": student_rows,

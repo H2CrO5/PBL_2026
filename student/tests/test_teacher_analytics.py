@@ -1,4 +1,4 @@
-"""Tests for the real-submission Teacher analytics feed."""
+"""Tests for the labeled Student-answer Teacher analytics feed."""
 
 import unittest
 from unittest.mock import patch
@@ -86,18 +86,22 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
     def tearDown(self):
         self.db.close()
 
-    def test_feed_uses_only_real_submissions(self):
+    def test_feed_includes_labeled_seed_answers(self):
         feed = build_teacher_feed(self.db)
-        self.assertEqual(feed["data_source"], "student-real-submissions")
+        self.assertEqual(feed["data_source"], "student-submissions-including-seed")
         self.assertEqual(len(feed["students"]), 1)
         student = feed["students"][0]
-        self.assertEqual(student["average_score"], 40.0)
-        self.assertEqual(student["completion_rate"], 50.0)
-        self.assertEqual(student["total_submissions"], 1)
-        self.assertEqual(student["weak_topics"], ["RAG citations"])
-        self.assertEqual(len(student["recent_submissions"]), 1)
+        self.assertEqual(student["average_score"], 70.0)
+        self.assertEqual(student["completion_rate"], 100.0)
+        self.assertEqual(student["total_submissions"], 2)
+        self.assertEqual(student["weak_topics"], [])
+        self.assertEqual(len(student["recent_submissions"]), 2)
+        self.assertEqual(
+            {item["source"] for item in student["recent_submissions"]},
+            {"real", "seed"},
+        )
         self.assertEqual(student["chat_summary"], ["How do I verify a citation?"])
-        self.assertEqual(feed["topic_metrics"][0]["wrong_rate"], 100.0)
+        self.assertEqual(feed["topic_metrics"][0]["wrong_rate"], 50.0)
         self.assertEqual(len(feed["score_trend"]), 1)
 
     def test_student_memory_uses_real_latest_attempts(self):

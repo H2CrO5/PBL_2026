@@ -13,9 +13,10 @@ def render():
     if not insights:
         st.info(t("no_student_insights"))
         return
+    data_source = insights[0].get("data_source")
     source_label = (
-        t("live_submissions")
-        if insights[0].get("data_source") == "student-real-submissions"
+        t("submissions_with_seed") if data_source == "student-submissions-including-seed"
+        else t("live_submissions") if data_source == "student-real-submissions"
         else t("demo_data")
     )
     st.caption(t("data_source", source=source_label))
@@ -76,7 +77,11 @@ def render():
             st.caption(
                 t("attempt_grading", attempt=submission.get("attempt_number", 1), source=submission.get("grading_source", "auto"))
             )
+            if submission.get("source") == "seed":
+                st.caption(t("sample_answer"))
             st.caption(t("submitted", date=submission["submitted_at"]))
+            if submission.get("source") == "seed":
+                continue
             with st.form(f"override_{submission['submission_id']}"):
                 corrected_score = st.number_input(
                     t("corrected_score"),

@@ -194,9 +194,11 @@ Denormalized analytics mirror of student data. Primary integration seam with the
 
 For the first live-integration increment, this table remains available for
 standalone Teacher demos. When `TEACHER_INTEGRATION_TOKEN` is configured,
-Teacher APIs read the authenticated Student analytics feed instead and label the
-response `student-real-submissions`; they do not silently fall back to this demo
-table if the Student service is unavailable.
+Teacher APIs read the authenticated Student analytics feed instead. The feed is
+labeled `student-submissions-including-seed`; each initial sample carries
+`source="seed"`, remains read-only, and is distinguishable from a real
+submission. Teacher does not silently fall back to its demo table if the
+Student service is unavailable.
 
 ### `concept_metrics`
 

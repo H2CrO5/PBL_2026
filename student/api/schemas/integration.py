@@ -94,6 +94,7 @@ class TeacherSubmissionItem(BaseModel):
     feedback: str
     attempt_number: int
     grading_source: str
+    source: Literal["real", "seed", "synthetic"] = "real"
     missing_concepts: list[str]
     teacher_error_pattern: str | None = None
     submitted_at: datetime
