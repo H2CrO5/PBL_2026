@@ -1,6 +1,7 @@
 """Analytics schemas."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class WeakConcept(BaseModel):
@@ -37,6 +38,9 @@ class DashboardSummary(BaseModel):
     question_seed_count: int
     required_question_count: int
     teacher_actions: list[TeacherAction]
+    data_source: str = "teacher-demo-data"
+    data_updated_at: datetime | None = None
+    score_trend: list[dict] = Field(default_factory=list)
 
 
 class LecturePlanRequest(BaseModel):
@@ -54,3 +58,9 @@ class LecturePlanResponse(BaseModel):
     in_class_check: str
     follow_up_actions: list[str]
     recommended_seed_titles: list[str]
+
+
+class TeacherReportResponse(LecturePlanResponse):
+    id: int
+    course_id: int
+    created_at: datetime

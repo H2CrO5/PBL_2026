@@ -7,32 +7,41 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from config import API_BASE_URL
-from ui.i18n import t
+from ui.i18n import get_lang, t
+
+LOGO_PATH = Path(__file__).resolve().parents[3] / "assets" / "branding" / "classpilot-logo-light.png"
 
 
 def render_sidebar():
     """Render the sidebar and return the selected page key."""
     with st.sidebar:
-        st.title(f"📚 {t('app_title')}")
+        st.image(str(LOGO_PATH), width="stretch")
+        st.caption(t("role_label"))
 
         if "token" in st.session_state and st.session_state.token:
             student = st.session_state.get("student", {})
-            st.markdown(f"**{student.get('name', '')}** ({student.get('student_code', '')})")
+            st.markdown(f"**{student.get('name', '')}**")
+            st.caption(student.get("student_code", ""))
             st.divider()
 
-            page_keys = ["assignments", "ta_bot"]
-            page_labels = [t("page_assignments"), t("page_ta_bot")]
-
-            selected_label = st.radio(
-                t("page_label"),
-                page_labels,
+            page_keys = ["dashboard", "assignments", "ta_bot"]
+            label_keys = {
+                "dashboard": "page_dashboard",
+                "assignments": "page_assignments",
+                "ta_bot": "page_ta_bot",
+            }
+            page = st.radio(
+                t("navigation"),
+                page_keys,
+                index=page_keys.index(st.session_state.get("student_page", "dashboard")),
+                format_func=lambda key: t(label_keys[key]),
                 label_visibility="collapsed",
+                key=f"student_navigation_{get_lang()}",
             )
-
-            page = page_keys[page_labels.index(selected_label)]
+            st.session_state.student_page = page
 
             st.divider()
-            if st.button(t("logout"), use_container_width=True):
+            if st.button(t("logout"), width="stretch"):
                 try:
                     httpx.post(
                         f"{API_BASE_URL}/auth/logout",

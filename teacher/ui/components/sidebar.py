@@ -2,14 +2,19 @@
 
 import httpx
 import streamlit as st
+from pathlib import Path
 
 from config import API_BASE_URL
+from ui.i18n import get_lang, t
+
+LOGO_PATH = Path(__file__).resolve().parents[3] / "assets" / "branding" / "classpilot-logo-light.png"
 
 
 def render_sidebar() -> str:
     """Render navigation and return selected page."""
     with st.sidebar:
-        st.title("🎓 Teacher Support")
+        st.image(str(LOGO_PATH), width="stretch")
+        st.caption(t("role_label"))
 
         if st.session_state.get("token"):
             teacher = st.session_state.get("teacher", {})
@@ -18,16 +23,24 @@ def render_sidebar() -> str:
             st.divider()
 
             pages = {
-                "Dashboard": "dashboard",
-                "Materials": "materials",
-                "Question Bank": "assignment",
-                "Analytics": "analytics",
-                "Students": "students",
+                "dashboard": "dashboard",
+                "materials": "materials",
+                "assignment": "question_bank",
+                "analytics": "analytics",
+                "students": "students",
             }
-            label = st.radio("Navigation", list(pages.keys()), label_visibility="collapsed")
+            page = st.radio(
+                t("navigation"),
+                list(pages),
+                index=list(pages).index(st.session_state.get("teacher_page", "dashboard")),
+                format_func=lambda key: t(pages[key]),
+                label_visibility="collapsed",
+                key=f"teacher_navigation_{get_lang()}",
+            )
+            st.session_state.teacher_page = page
 
             st.divider()
-            if st.button("Logout", width="stretch"):
+            if st.button(t("logout"), width="stretch"):
                 try:
                     httpx.post(
                         f"{API_BASE_URL}/auth/logout",
@@ -39,6 +52,6 @@ def render_sidebar() -> str:
                 st.session_state.clear()
                 st.rerun()
 
-            return pages[label]
+            return page
 
         return "login"

@@ -2,6 +2,7 @@
 
 import streamlit as st
 import httpx
+from urllib.parse import quote
 
 import sys
 from pathlib import Path
@@ -49,10 +50,11 @@ def _api_get(path: str) -> dict | None:
     return None
 
 
-def _load_history():
-    """Load chat history from API if not already loaded."""
-    if "chat_messages" not in st.session_state:
-        data = _api_get("/chat/history?limit=50")
+def _load_history(external_course_id: str):
+    """Load only the selected course's chat history."""
+    if st.session_state.get("chat_course_id") != external_course_id:
+        path = f"/chat/history?limit=50&external_course_id={quote(external_course_id, safe='')}"
+        data = _api_get(path)
         if data and data.get("messages"):
             st.session_state.chat_messages = [
                 {"role": m["role"], "content": m["content"], "sources": m.get("sources")}
@@ -60,6 +62,7 @@ def _load_history():
             ]
         else:
             st.session_state.chat_messages = []
+        st.session_state.chat_course_id = external_course_id
 
 
 def render():
@@ -67,7 +70,16 @@ def render():
     st.title(t("ta_bot_title"))
     st.caption(t("ta_bot_caption"))
 
-    _load_history()
+    courses = _api_get("/students/me/courses")
+    if not courses:
+        st.info(t("no_active_courses"))
+        return
+    labels = {f"{course['title']} ({course['term']})": course for course in courses}
+    selected_label = st.selectbox(t("course_label"), list(labels))
+    selected_course = labels[selected_label]
+    external_course_id = selected_course["external_course_id"]
+
+    _load_history(external_course_id)
 
     # Display chat messages
     for msg in st.session_state.chat_messages:
@@ -95,7 +107,10 @@ def render():
         # Get response
         with st.chat_message("assistant"):
             with st.spinner(t("ta_bot_thinking")):
-                result = _api_post("/chat/message", {"message": prompt})
+                result = _api_post(
+                    "/chat/message",
+                    {"message": prompt, "external_course_id": external_course_id},
+                )
 
             if result:
                 st.markdown(result["content"])

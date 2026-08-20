@@ -37,6 +37,7 @@ class Course(Base):
     __tablename__ = "courses"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    external_key = Column(Text, unique=True, nullable=True)
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=False)
     title = Column(Text, nullable=False)
     term = Column(Text, nullable=False)
@@ -46,6 +47,7 @@ class Course(Base):
     lectures = relationship("Lecture", back_populates="course")
     students = relationship("StudentProfile", back_populates="course")
     question_seeds = relationship("QuestionSeed", back_populates="course")
+    published_assignments = relationship("PublishedAssignment", back_populates="course")
 
 
 class Lecture(Base):
@@ -67,6 +69,7 @@ class Material(Base):
     __tablename__ = "materials"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    external_key = Column(Text, unique=True, nullable=True)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
     lecture_id = Column(Integer, ForeignKey("lectures.id"), nullable=False)
     title = Column(Text, nullable=False)
@@ -120,11 +123,42 @@ class QuestionSeed(Base):
     question_text = Column(Text, nullable=False)
     expected_answer = Column(Text, nullable=False)
     rubric = Column(Text, nullable=False)  # JSON list
+    points = Column(Float, nullable=False, default=100.0)
+    max_attempts = Column(Integer, nullable=False, default=1)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     course = relationship("Course", back_populates="question_seeds")
     lecture = relationship("Lecture", back_populates="question_seeds")
+
+
+class PublishedAssignment(Base):
+    __tablename__ = "published_assignments"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    external_key = Column(Text, unique=True, nullable=False)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    question_seed_id = Column(Integer, ForeignKey("question_seeds.id"), nullable=False)
+    status = Column(Text, nullable=False, default="published")
+    target_mode = Column(Text, nullable=False, default="all")
+    target_student_codes = Column(Text, nullable=False, default="[]")
+    due_at = Column(DateTime, nullable=True)
+    published_at = Column(DateTime, default=datetime.utcnow)
+
+    course = relationship("Course", back_populates="published_assignments")
+    question_seed = relationship("QuestionSeed")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True)
+    action = Column(Text, nullable=False)
+    resource_type = Column(Text, nullable=False)
+    resource_id = Column(Text, nullable=True)
+    details = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class TeacherReport(Base):
@@ -137,4 +171,9 @@ class TeacherReport(Base):
     common_misconceptions = Column(Text, default="[]")
     recommended_focus = Column(Text, default="[]")
     suggested_activity = Column(Text, nullable=False)
+    opening_activity = Column(Text, nullable=True)
+    review_sequence = Column(Text, nullable=False, default="[]")
+    in_class_check = Column(Text, nullable=True)
+    follow_up_actions = Column(Text, nullable=False, default="[]")
+    recommended_seed_titles = Column(Text, nullable=False, default="[]")
     created_at = Column(DateTime, default=datetime.utcnow)

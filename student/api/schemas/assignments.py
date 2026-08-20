@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LectureInfo(BaseModel):
@@ -18,12 +18,19 @@ class LectureInfo(BaseModel):
 
 class AssignmentResponse(BaseModel):
     id: int
+    external_assignment_id: str | None = None
     topic: str
     difficulty: str
     question_text: str
     choices: list[str] | None = None
     question_type: str
     lecture_id: int | None = None
+    course_id: int | None = None
+    title: str | None = None
+    points: float = 100
+    max_attempts: int = 1
+    attempts_used: int = 0
+    due_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -52,16 +59,44 @@ class SubmitRequest(BaseModel):
     answer_text: str
 
 
+class SharedSubmissionRequest(BaseModel):
+    """Compatibility shape for POST /assignments/{id}/submissions."""
+
+    answer_text: str | None = None
+    answers: list[dict[str, str]] = Field(default_factory=list)
+
+
+class BatchAnswer(BaseModel):
+    assignment_id: int
+    answer_text: str = Field(min_length=1)
+
+
+class BatchSubmissionRequest(BaseModel):
+    answers: list[BatchAnswer] = Field(min_length=1, max_length=20)
+
+
 class SubmissionResponse(BaseModel):
     id: int
     assignment_id: int
     answer_text: str
     is_correct: bool
     score: float
+    max_score: float
     feedback: str
+    student_feedback: str
     correct_answer: str
     explanation: str
+    attempt_number: int = 1
+    attempts_remaining: int = 0
+    grading_source: str = "auto"
+    missing_concepts: list[str] = Field(default_factory=list)
     submitted_at: datetime
+
+
+class BatchSubmissionResponse(BaseModel):
+    submissions: list[SubmissionResponse]
+    total_score: float
+    max_score: float
 
 
 class HistoryItem(BaseModel):
@@ -73,6 +108,7 @@ class HistoryItem(BaseModel):
     answer_text: str
     is_correct: bool
     score: float
+    max_score: float
     feedback: str
     submitted_at: datetime
 
@@ -92,7 +128,11 @@ class HistoryAssignment(BaseModel):
     answer_text: str
     is_correct: bool
     score: float
+    max_score: float
     feedback: str
+    attempt_number: int = 1
+    grading_source: str = "auto"
+    missing_concepts: list[str] = Field(default_factory=list)
     submitted_at: datetime
 
 

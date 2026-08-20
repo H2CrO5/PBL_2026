@@ -6,6 +6,7 @@ import httpx
 import streamlit as st
 
 from config import API_BASE_URL
+from ui.i18n import t
 
 
 def auth_headers() -> dict[str, str]:
@@ -19,14 +20,14 @@ def get(path: str, timeout: float = 10.0) -> Any | None:
         if resp.status_code == 200:
             return resp.json()
         if resp.status_code == 401:
-            st.warning("Session expired. Please log in again.")
+            st.warning(t("session_expired"))
             st.session_state.clear()
             st.rerun()
-        st.error(resp.json().get("detail", f"API error: {resp.status_code}"))
+        st.error(resp.json().get("detail", t("api_error", status=resp.status_code)))
     except httpx.ConnectError:
-        st.error("Cannot connect to teacher API server.")
+        st.error(t("connection_error"))
     except httpx.ReadTimeout:
-        st.error("Request timed out.")
+        st.error(t("timeout"))
     return None
 
 
@@ -41,13 +42,37 @@ def post(path: str, json_data: dict | None = None, timeout: float = 20.0) -> Any
         if resp.status_code == 200:
             return resp.json()
         if resp.status_code == 401:
-            st.warning("Session expired. Please log in again.")
+            st.warning(t("session_expired"))
             st.session_state.clear()
             st.rerun()
-        st.error(resp.json().get("detail", f"API error: {resp.status_code}"))
+        st.error(resp.json().get("detail", t("api_error", status=resp.status_code)))
     except httpx.ConnectError:
-        st.error("Cannot connect to teacher API server.")
+        st.error(t("connection_error"))
     except httpx.ReadTimeout:
-        st.error("Request timed out.")
+        st.error(t("timeout"))
     return None
 
+
+def post_file(
+    path: str,
+    filename: str,
+    content: bytes,
+    data: dict[str, str],
+    timeout: float = 300.0,
+) -> Any | None:
+    try:
+        resp = httpx.post(
+            f"{API_BASE_URL}{path}",
+            data=data,
+            files={"file": (filename, content)},
+            headers=auth_headers(),
+            timeout=timeout,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        st.error(resp.json().get("detail", t("api_error", status=resp.status_code)))
+    except httpx.ConnectError:
+        st.error(t("connection_error"))
+    except httpx.ReadTimeout:
+        st.error(t("material_timeout"))
+    return None

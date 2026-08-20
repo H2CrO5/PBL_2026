@@ -10,7 +10,7 @@ FAISS_INDEX_DIR = BASE_DIR / "data" / "faiss_index"
 DOCUMENTS_DIR = BASE_DIR / "vectorstore" / "documents"
 
 # ── Database ───────────────────────────────────────────
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+DATABASE_URL = os.getenv("STUDENT_DATABASE_URL", f"sqlite:///{DB_PATH}")
 
 # ── AWS Bedrock ────────────────────────────────────────
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
@@ -39,3 +39,15 @@ API_PORT = 8000
 # ── Streamlit ──────────────────────────────────────────
 STREAMLIT_PORT = 8501
 API_BASE_URL = os.getenv("API_BASE_URL", f"http://localhost:{API_PORT}")
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "STUDENT_CORS_ORIGINS",
+        "http://localhost:8501,http://127.0.0.1:8501",
+    ).split(",")
+    if origin.strip()
+]
+
+# Service-to-service authentication for the read-only Teacher analytics feed.
+# Keep this value in the environment; never commit a real token.
+TEACHER_INTEGRATION_TOKEN = os.getenv("TEACHER_INTEGRATION_TOKEN", "")

@@ -20,13 +20,49 @@ from api.schemas.analytics import (
     LecturePlanRequest,
     LecturePlanResponse,
     TeacherAction,
+    TeacherReportResponse,
     WeakConcept,
 )
 from db.database import get_db
 from db.models import ConceptMetric, Course, QuestionSeed, StudentProfile, Teacher, TeacherReport
 from services import analytics_llm
+from services import student_data
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+
+def _json_list(value: str | None) -> list[str]:
+    try:
+        result = json.loads(value or "[]")
+    except (json.JSONDecodeError, TypeError):
+        return []
+    return [str(item) for item in result] if isinstance(result, list) else []
+
+
+def _analytics_records(db: DBSession, course: Course):
+    try:
+        feed = student_data.fetch_feed(course.external_key)
+    except student_data.StudentDataUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    if feed is not None:
+        students, concepts, generated_at = student_data.teacher_records(feed)
+        return students, concepts, feed.get("data_source", "student-real-submissions"), generated_at, feed.get("score_trend", [])
+    if not config.DEMO_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Student integration is required. Set TEACHER_DEMO_MODE=1 only for an intentional demo.",
+        )
+    students = db.query(StudentProfile).filter(StudentProfile.course_id == course.id).all()
+    concepts = (
+        db.query(ConceptMetric)
+        .filter(ConceptMetric.course_id == course.id)
+        .order_by(ConceptMetric.wrong_rate.desc())
+        .all()
+    )
+    return students, concepts, "teacher-demo-data", None, []
 
 
 def _load_list(raw_value: str) -> list[str]:
@@ -79,6 +115,27 @@ def _concept_facts(
         }
         for concept in concepts
     ]
+
+
+def _rag_context(course: Course, concepts: list[ConceptMetric]) -> str:
+    """Retrieve course material for teaching prose, never for numeric facts."""
+    if not student_data.integration_enabled() or not concepts:
+        return ""
+    query = "\n".join(
+        [course.title]
+        + [f"{item.concept}: {item.misconception}" for item in concepts[:5]]
+    )
+    try:
+        chunks = student_data.retrieve_rag(course.external_key, query, top_k=5)
+    except student_data.StudentDataUnavailable as exc:
+        print(f"[analytics] RAG context unavailable: {exc}")
+        return ""
+    return "\n\n".join(
+        f"[{chunk.get('source', 'course material')} / "
+        f"{chunk.get('source_locator', 'chunk')}]\n{chunk.get('text', '')}"
+        for chunk in chunks
+        if chunk.get("text")
+    )
 
 
 def _evidence_for(
@@ -150,7 +207,10 @@ def _teacher_action_facts(
             ),
         })
 
-    low_students = [s for s in students if s.average_score < 60]
+    low_students = [
+        s for s in students
+        if getattr(s, "total_submissions", 1) > 0 and s.average_score < 60
+    ]
     if low_students:
         names = ", ".join(s.name for s in low_students[:3])
         facts.append({
@@ -211,21 +271,26 @@ def _teacher_actions_from_facts(action_facts: list[dict]) -> list[TeacherAction]
 def dashboard(
     teacher: Teacher = Depends(get_current_teacher),
     db: DBSession = Depends(get_db),
+    course_id: int | None = None,
 ):
-    course = db.query(Course).filter(Course.teacher_id == teacher.id).first()
+    course_query = db.query(Course).filter(Course.teacher_id == teacher.id)
+    if course_id is not None:
+        course_query = course_query.filter(Course.id == course_id)
+    course = course_query.first()
     if not course:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    students = db.query(StudentProfile).filter(StudentProfile.course_id == course.id).all()
-    concepts = (
-        db.query(ConceptMetric)
-        .filter(ConceptMetric.course_id == course.id)
-        .order_by(ConceptMetric.wrong_rate.desc())
-        .all()
-    )
+    students, concepts, data_source, data_updated_at, score_trend = _analytics_records(db, course)
     question_seeds = db.query(QuestionSeed).filter(QuestionSeed.course_id == course.id).all()
 
-    avg_score = round(sum(s.average_score for s in students) / len(students), 1) if students else 0
+    scored_students = [
+        student for student in students
+        if getattr(student, "total_submissions", 1) > 0
+    ]
+    avg_score = (
+        round(sum(s.average_score for s in scored_students) / len(scored_students), 1)
+        if scored_students else 0
+    )
     completion = round(sum(s.completion_rate for s in students) / len(students), 1) if students else 0
 
     return DashboardSummary(
@@ -248,6 +313,9 @@ def dashboard(
         teacher_actions=_teacher_actions_from_facts(
             _teacher_action_facts(students, concepts, question_seeds, completion)
         ),
+        data_source=data_source,
+        data_updated_at=data_updated_at,
+        score_trend=score_trend,
     )
 
 
@@ -260,19 +328,15 @@ def evidence(
     if not course:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    concepts = (
-        db.query(ConceptMetric)
-        .filter(ConceptMetric.course_id == course.id)
-        .order_by(ConceptMetric.wrong_rate.desc())
-        .all()
-    )
-    students = db.query(StudentProfile).filter(StudentProfile.course_id == course.id).all()
+    students, concepts, _, _, _ = _analytics_records(db, course)
     question_seeds = db.query(QuestionSeed).filter(QuestionSeed.course_id == course.id).all()
 
     narration = None
     if config.USE_LLM and concepts:
         try:
-            narration = analytics_llm.narrate_evidence(_concept_facts(concepts, students))
+            narration = analytics_llm.narrate_evidence(
+                _concept_facts(concepts, students), _rag_context(course, concepts)
+            )
         except Exception as exc:  # pragma: no cover - fallback path
             print(f"[analytics] evidence LLM fallback: {type(exc).__name__}: {exc}")
             narration = None
@@ -290,13 +354,8 @@ def lecture_plan(
     if not course:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    concepts = (
-        db.query(ConceptMetric)
-        .filter(ConceptMetric.course_id == course.id)
-        .order_by(ConceptMetric.wrong_rate.desc())
-        .limit(3)
-        .all()
-    )
+    _, all_concepts, _, _, _ = _analytics_records(db, course)
+    concepts = all_concepts[:3]
     if not concepts:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No analytics data found")
 
@@ -333,7 +392,9 @@ def lecture_plan(
             for c in concepts
         ]
         try:
-            prose = analytics_llm.narrate_lecture_plan(concept_facts, seed_titles)
+            prose = analytics_llm.narrate_lecture_plan(
+                concept_facts, seed_titles, _rag_context(course, concepts)
+            )
         except Exception as exc:  # pragma: no cover - fallback path
             print(f"[analytics] lecture-plan LLM fallback: {type(exc).__name__}: {exc}")
 
@@ -356,7 +417,44 @@ def lecture_plan(
         common_misconceptions=json.dumps(response.common_misconceptions),
         recommended_focus=json.dumps(response.recommended_focus),
         suggested_activity=response.suggested_activity,
+        opening_activity=response.opening_activity,
+        review_sequence=json.dumps(response.review_sequence, ensure_ascii=False),
+        in_class_check=response.in_class_check,
+        follow_up_actions=json.dumps(response.follow_up_actions, ensure_ascii=False),
+        recommended_seed_titles=json.dumps(response.recommended_seed_titles, ensure_ascii=False),
     ))
     db.commit()
 
     return response
+
+
+@router.get("/reports", response_model=list[TeacherReportResponse])
+def report_history(
+    teacher: Teacher = Depends(get_current_teacher),
+    db: DBSession = Depends(get_db),
+):
+    reports = (
+        db.query(TeacherReport)
+        .join(Course, TeacherReport.course_id == Course.id)
+        .filter(Course.teacher_id == teacher.id)
+        .order_by(TeacherReport.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    return [
+        TeacherReportResponse(
+            id=report.id,
+            course_id=report.course_id,
+            created_at=report.created_at,
+            weakest_concepts=_json_list(report.weakest_concepts),
+            common_misconceptions=_json_list(report.common_misconceptions),
+            recommended_focus=_json_list(report.recommended_focus),
+            suggested_activity=report.suggested_activity,
+            opening_activity=report.opening_activity or report.suggested_activity,
+            review_sequence=_json_list(report.review_sequence),
+            in_class_check=report.in_class_check or "",
+            follow_up_actions=_json_list(report.follow_up_actions),
+            recommended_seed_titles=_json_list(report.recommended_seed_titles),
+        )
+        for report in reports
+    ]

@@ -4,16 +4,16 @@ import streamlit as st
 
 TRANSLATIONS = {
     # ── App / Sidebar ─────────────────────────────────────
-    "app_title": {"ja": "学習支援システム", "en": "Learning Support System"},
-    "page_label": {"ja": "ページ", "en": "Page"},
+    "role_label": {"ja": "Student", "en": "Student"},
+    "navigation": {"ja": "ナビゲーション", "en": "Navigation"},
+    "page_dashboard": {"ja": "ダッシュボード", "en": "Dashboard"},
     "page_assignments": {"ja": "課題", "en": "Assignments"},
     "page_ta_bot": {"ja": "TA Bot", "en": "TA Bot"},
     "logout": {"ja": "ログアウト", "en": "Logout"},
     "language": {"ja": "言語", "en": "Language"},
 
     # ── Login ─────────────────────────────────────────────
-    "login_title": {"ja": "ログイン", "en": "Login"},
-    "login_instruction": {"ja": "学生IDとパスワードを入力してください。", "en": "Enter your student ID and password."},
+    "login_title": {"ja": "Student Login", "en": "Student Login"},
     "student_id": {"ja": "学生ID", "en": "Student ID"},
     "password": {"ja": "パスワード", "en": "Password"},
     "login_button": {"ja": "ログイン", "en": "Login"},
@@ -21,7 +21,7 @@ TRANSLATIONS = {
     "login_failed": {"ja": "ログインに失敗しました。", "en": "Login failed."},
     "login_connect_error": {"ja": "APIサーバーに接続できません。サーバーが起動しているか確認してください。", "en": "Cannot connect to the API server. Please check if the server is running."},
     "login_error": {"ja": "エラーが発生しました", "en": "An error occurred"},
-    "demo_account": {"ja": "デモアカウント: s2024001 / demo123", "en": "Demo account: s2024001 / demo123"},
+    "demo_accounts": {"ja": "デモアカウント", "en": "Demo Accounts"},
 
     # ── Assignments ───────────────────────────────────────
     "assignments_title": {"ja": "課題", "en": "Assignments"},
@@ -41,12 +41,16 @@ TRANSLATIONS = {
     "enter_code": {"ja": "コードを入力してください:", "en": "Enter your code:"},
     "enter_answer": {"ja": "回答を入力してください:", "en": "Enter your answer:"},
     "submit_answer": {"ja": "回答を提出", "en": "Submit"},
+    "answer_all": {"ja": "この回の問題にまとめて回答", "en": "Answer all questions in this lecture"},
+    "submit_all": {"ja": "すべての回答を提出", "en": "Submit all answers"},
+    "batch_result": {"ja": "{count}問を提出しました。合計 {score:.1f}/{max_score:.1f}", "en": "Submitted {count} questions. Total: {score:.1f}/{max_score:.1f}"},
     "answer_empty_warning": {"ja": "回答を入力してください。", "en": "Please enter your answer."},
     "grading_spinner": {"ja": "採点中...", "en": "Grading..."},
     "result_header": {"ja": "採点結果", "en": "Result"},
-    "correct_msg": {"ja": "正解！ スコア: {score:.1f}/100", "en": "Correct! Score: {score:.1f}/100"},
-    "incorrect_msg": {"ja": "不正解 スコア: {score:.1f}/100", "en": "Incorrect. Score: {score:.1f}/100"},
+    "correct_msg": {"ja": "正解！ スコア: {score:.1f}/{max_score:.1f}", "en": "Correct! Score: {score:.1f}/{max_score:.1f}"},
+    "incorrect_msg": {"ja": "不正解 スコア: {score:.1f}/{max_score:.1f}", "en": "Incorrect. Score: {score:.1f}/{max_score:.1f}"},
     "feedback_label": {"ja": "フィードバック:", "en": "Feedback:"},
+    "missing_concepts_label": {"ja": "復習が必要な概念", "en": "Concepts to review"},
     "show_answer": {"ja": "正解と解説を見る", "en": "Show correct answer"},
     "correct_answer_label": {"ja": "正解:", "en": "Correct answer:"},
     "explanation_label": {"ja": "解説:", "en": "Explanation:"},
@@ -80,6 +84,8 @@ TRANSLATIONS = {
     "ta_bot_placeholder": {"ja": "質問を入力してください...", "en": "Type your question..."},
     "ta_bot_thinking": {"ja": "考え中...", "en": "Thinking..."},
     "ta_bot_ref": {"ja": "参照", "en": "Ref"},
+    "course_label": {"ja": "コース", "en": "Course"},
+    "no_active_courses": {"ja": "受講中のコースがありません。", "en": "No active courses are available."},
 
     # ── Common errors ─────────────────────────────────────
     "session_expired": {"ja": "セッションが切れました。再ログインしてください。", "en": "Session expired. Please log in again."},
@@ -87,6 +93,28 @@ TRANSLATIONS = {
     "timeout_error": {"ja": "タイムアウトしました。もう一度試してください。", "en": "Request timed out. Please try again."},
     "api_error": {"ja": "エラーが発生しました。", "en": "An error occurred."},
     "score_label": {"ja": "スコア", "en": "Score"},
+
+    # ── Dashboard ────────────────────────────────────────
+    "welcome_student": {"ja": "ようこそ、{name}さん", "en": "Welcome, {name}"},
+    "dashboard_caption": {"ja": "現在の学習状況と最近の成績を確認できます。", "en": "Review your current progress and recent performance."},
+    "overall_score": {"ja": "総合スコア", "en": "Overall Score"},
+    "accuracy": {"ja": "正答率", "en": "Accuracy"},
+    "answered": {"ja": "回答済み", "en": "Answered"},
+    "today_progress": {"ja": "今日の進捗", "en": "Today's Progress"},
+    "weak_topics_title": {"ja": "復習が必要なトピック", "en": "Topics to Review"},
+    "strong_topics_title": {"ja": "得意なトピック", "en": "Strong Topics"},
+    "no_weak_topics": {"ja": "現在、明確な苦手トピックはありません。", "en": "No clear weak topics yet."},
+    "no_strong_topics": {"ja": "課題に回答すると得意トピックが表示されます。", "en": "Strong topics will appear after you complete assignments."},
+    "score_trend": {"ja": "日別スコア推移", "en": "Daily Score Trend"},
+    "topic_scores": {"ja": "トピック別スコア", "en": "Scores by Topic"},
+    "no_trend_data": {"ja": "推移を表示する提出データがまだありません。", "en": "No submission data is available for trends yet."},
+    "average_score": {"ja": "平均スコア", "en": "Average Score"},
+    "responses": {"ja": "回答数", "en": "Responses"},
+    "date": {"ja": "日付", "en": "Date"},
+    "topic": {"ja": "トピック", "en": "Topic"},
+    "concept_mastery": {"ja": "概念別習熟度", "en": "Concept Mastery"},
+    "mastery_score": {"ja": "習熟スコア", "en": "Mastery Score"},
+    "attempts": {"ja": "評価数", "en": "Evidence Count"},
 }
 
 

@@ -2,18 +2,28 @@
 
 import httpx
 import streamlit as st
+from pathlib import Path
 
 from config import API_BASE_URL
+from ui.i18n import t
+
+BRAND_DIR = Path(__file__).resolve().parents[3] / "assets" / "branding"
+LOGO_PATH = BRAND_DIR / "classpilot-logo-light.png"
 
 
 def render():
-    st.title("Teacher Login")
-    st.markdown("Use the demo teacher account to enter the Teacher Part.")
+    left, center, right = st.columns([1, 2, 1])
+    with center:
+        st.image(str(LOGO_PATH), width="stretch")
+        st.markdown(
+            f"<h1 style='text-align: center;'>{t('teacher_login')}</h1>",
+            unsafe_allow_html=True,
+        )
 
-    with st.form("teacher_login"):
-        teacher_code = st.text_input("Teacher ID", value="t2024001")
-        password = st.text_input("Password", type="password", value="demo123")
-        submitted = st.form_submit_button("Login", width="stretch")
+        with st.form("teacher_login"):
+            teacher_code = st.text_input(t("teacher_id"), value="t2024001")
+            password = st.text_input(t("password"), type="password", value="demo123")
+            submitted = st.form_submit_button(t("login"), width="stretch")
 
     if submitted:
         try:
@@ -28,9 +38,11 @@ def render():
                 st.session_state.teacher = data["teacher"]
                 st.rerun()
             else:
-                st.error(resp.json().get("detail", "Login failed"))
+                st.error(resp.json().get("detail", t("login_failed")))
         except httpx.ConnectError:
-            st.error("Cannot connect to teacher API server.")
+            st.error(t("connection_error"))
 
-    st.divider()
-    st.caption("Demo account: t2024001 / demo123")
+    with center:
+        st.divider()
+        st.markdown(f"**{t('demo_accounts')}**")
+        st.markdown("- `t2024001 / demo123` — 東北一郎")

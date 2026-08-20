@@ -3,77 +3,123 @@
 import streamlit as st
 
 from ui.api_client import get, post
+from ui.i18n import localize_text, t, tv
 
 
 def render():
-    st.title("Analytics and Lecture Improvement")
+    st.title(t("analytics_title"))
     summary = get("/analytics/dashboard")
     if not summary:
         return
+    data_source = summary.get("data_source")
+    source_label = (
+        t("submissions_with_seed") if data_source == "student-submissions-including-seed"
+        else t("live_submissions") if data_source == "student-real-submissions"
+        else t("demo_data_unconfigured")
+    )
+    st.caption(t("data_source", source=source_label))
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Average Score", f"{summary['average_score']:.1f}")
-    col2.metric("Completion Rate", f"{summary['completion_rate']:.1f}%")
-    col3.metric("Weak Concepts", len(summary["weak_concepts"]))
+    col1.metric(t("average_score"), f"{summary['average_score']:.1f}")
+    col2.metric(t("completion_rate"), f"{summary['completion_rate']:.1f}%")
+    col3.metric(t("weak_concepts"), len(summary["weak_concepts"]))
+
+    st.subheader(t("assignment_analytics"))
+    published = get("/assignments") or []
+    if published:
+        labels = {f"{item['title']} ({item['target_concept']})": item for item in published}
+        selected = st.selectbox(t("select_assignment"), list(labels))
+        assignment_result = get(f"/assignments/{labels[selected]['id']}/analytics")
+        if assignment_result:
+            a1, a2, a3, a4 = st.columns(4)
+            a1.metric(t("assigned"), assignment_result["total_assigned"])
+            a2.metric(t("submissions"), assignment_result["total_submitted"])
+            a3.metric(t("average_score"), f"{assignment_result['average_score']:.1f}")
+            a4.metric(t("wrong_rate_metric"), f"{assignment_result['wrong_rate']:.1f}%")
+            if assignment_result["missing_concepts"]:
+                st.markdown(f"**{t('missing_concepts')}**")
+                for concept in assignment_result["missing_concepts"]:
+                    st.markdown(f"- {concept}")
+            if assignment_result["error_patterns"]:
+                st.markdown(f"**{t('error_patterns')}**")
+                for pattern in assignment_result["error_patterns"]:
+                    st.markdown(f"- {localize_text(pattern)}")
+    else:
+        st.info(t("no_published_assignments"))
 
     evidence = get("/analytics/evidence") or []
 
-    st.subheader("Incorrect Answer Trends")
+    st.subheader(t("incorrect_trends"))
     for concept in summary["weak_concepts"]:
         with st.container(border=True):
-            st.markdown(f"**{concept['concept']}** — wrong rate: **{concept['wrong_rate']:.0f}%**")
-            st.markdown(f"Misconception: {concept['misconception']}")
-            st.markdown(f"Teaching focus: {concept['recommended_focus']}")
+            st.markdown(f"**{localize_text(concept['concept'])}** — {t('wrong_rate_line', rate=concept['wrong_rate'])}")
+            st.markdown(f"{t('misconception')}: {localize_text(concept['misconception'])}")
+            st.markdown(f"{t('teaching_focus')}: {localize_text(concept['recommended_focus'])}")
 
-    st.subheader("Evidence View")
+    st.subheader(t("evidence_view"))
     if not evidence:
-        st.info("No evidence data available.")
+        st.info(t("no_evidence"))
     for item in evidence:
-        with st.expander(f"{item['concept']} — {item['confidence']}"):
-            st.caption(item["evidence_status"])
-            st.markdown("**Affected students**")
+        with st.expander(f"{localize_text(item['concept'])} — {tv(item['confidence'])}"):
+            st.caption(tv(item["evidence_status"]))
+            st.markdown(f"**{t('affected_students')}**")
             for student in item["affected_students"]:
                 st.markdown(f"- {student}")
-            st.markdown("**Related question seeds**")
+            st.markdown(f"**{t('related_seeds')}**")
             if item["related_question_seeds"]:
                 for seed in item["related_question_seeds"]:
                     st.markdown(f"- {seed}")
             else:
-                st.markdown("- No related seed yet")
-            st.markdown("**Typical evidence**")
+                st.markdown(f"- {t('no_related_seed')}")
+            st.markdown(f"**{t('typical_evidence')}**")
             for error in item["typical_errors"]:
-                st.markdown(f"- {error}")
-            st.markdown(f"**Recommended action:** {item['recommended_action']}")
+                st.markdown(f"- {localize_text(error)}")
+            st.markdown(f"**{t('recommended_action')}:** {localize_text(item['recommended_action'])}")
 
-    st.subheader("Next Lecture Recommendation")
-    if st.button("Generate lecture plan", width="stretch"):
+    st.subheader(t("next_lecture"))
+    if st.button(t("generate_plan"), width="stretch"):
         plan = post("/analytics/lecture-plan", {"course_id": summary["course_id"]})
         if plan:
             st.session_state.lecture_plan = plan
 
     plan = st.session_state.get("lecture_plan")
     if plan:
-        st.markdown("**Opening activity**")
-        st.info(plan["opening_activity"])
-        st.markdown("**Weakest concepts**")
+        st.markdown(f"**{t('opening_activity')}**")
+        st.info(localize_text(plan["opening_activity"]))
+        st.markdown(f"**{t('weakest_concepts')}**")
         for concept in plan["weakest_concepts"]:
-            st.markdown(f"- {concept}")
-        st.markdown("**Common misconceptions**")
+            st.markdown(f"- {localize_text(concept)}")
+        st.markdown(f"**{t('common_misconceptions')}**")
         for item in plan["common_misconceptions"]:
-            st.markdown(f"- {item}")
-        st.markdown("**Recommended focus**")
+            st.markdown(f"- {localize_text(item)}")
+        st.markdown(f"**{t('recommended_focus')}**")
         for item in plan["recommended_focus"]:
-            st.markdown(f"- {item}")
-        st.markdown("**Review sequence**")
+            st.markdown(f"- {localize_text(item)}")
+        st.markdown(f"**{t('review_sequence')}**")
         for item in plan["review_sequence"]:
-            st.markdown(f"- {item}")
-        st.markdown("**In-class check**")
-        st.success(plan["in_class_check"])
-        st.markdown("**Follow-up actions**")
+            st.markdown(f"- {localize_text(item)}")
+        st.markdown(f"**{t('in_class_check')}**")
+        st.success(localize_text(plan["in_class_check"]))
+        st.markdown(f"**{t('follow_up')}**")
         for item in plan["follow_up_actions"]:
-            st.markdown(f"- {item}")
+            st.markdown(f"- {localize_text(item)}")
         if plan["recommended_seed_titles"]:
-            st.markdown("**Recommended seeds**")
+            st.markdown(f"**{t('recommended_seeds')}**")
             for title in plan["recommended_seed_titles"]:
                 st.markdown(f"- {title}")
-        st.caption(plan["suggested_activity"])
+        st.caption(localize_text(plan["suggested_activity"]))
+
+    st.subheader(t("report_history"))
+    reports = get("/analytics/reports") or []
+    if not reports:
+        st.info(t("no_report_history"))
+    for report in reports[:5]:
+        label = f"{report['created_at'][:10]} — {', '.join(report['weakest_concepts'])}"
+        with st.expander(label):
+            st.markdown(localize_text(report["suggested_activity"]))
+            if report.get("opening_activity"):
+                st.markdown(f"**{t('opening_activity')}:** {localize_text(report['opening_activity'])}")
+            if report.get("follow_up_actions"):
+                st.markdown(f"**{t('follow_up')}**")
+                for action in report["follow_up_actions"]:
+                    st.markdown(f"- {localize_text(action)}")

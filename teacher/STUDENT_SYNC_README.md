@@ -1,6 +1,7 @@
 # Teacher Part Development Sync README
 
-This document explains the current Teacher Part development plan for the Student Part team. The Teacher Part is an independent module for now, but it is intentionally shaped so the future shared backend can connect it with the Student Part.
+This document records the Teacher/Student contract. The modules keep independent
+local databases but are now connected through authenticated integration APIs.
 
 ## Current Development Assumption
 
@@ -9,7 +10,37 @@ The project is currently split into two parallel modules:
 - Student Part: student dashboard, assignment display, answer submission, grading result, feedback, history, and TA Bot.
 - Teacher Part: teacher dashboard, material management, question seed management, class analytics, student analytics, and lecture improvement suggestions.
 
-During this stage, each part can run with its own local database and mock/demo data. After both modules are stable, the shared backend will replace local data stores and unify authentication, RAG, LLM calls, analytics, and assignment generation.
+Each part can still run in demo mode. When integration is configured, stable
+course IDs, RAG materials, published assignments, real analytics, and grade
+corrections move through the service boundary.
+
+## Implemented Live Submission Bridge
+
+The first safe integration increment is now available without sharing SQLite
+files directly:
+
+```text
+Student real submission
+-> Student GET /integrations/teacher/analytics
+-> Teacher analytics/student endpoints
+-> existing Teacher Dashboard, Analytics, and Students views
+```
+
+Configure both applications with the same `TEACHER_INTEGRATION_TOKEN` and set
+`STUDENT_API_BASE_URL` for the Teacher process. The endpoint is read-only,
+service-authenticated, includes clearly labeled initial seed answers for the
+enrolled demo students, excludes synthetic evaluation rows, and does not expose
+credentials or correct answers. Seed answers are read-only in Teacher. If integration is configured but unavailable,
+Teacher returns 503 instead of silently displaying demo values.
+
+Student now stores explicit courses and enrollments keyed by the Teacher
+course's stable `external_key`. Legacy rows are conservatively migrated into a
+separate legacy course.
+
+Copy `.env.example` to `.env`; both `student/run.sh` and `teacher/run.sh` load
+the shared root `.env` automatically. This bridge is intentionally compatible
+with the future shared-backend contract and can later move behind that service
+without rewriting either Streamlit UI.
 
 ## Product Scope Boundary
 
@@ -60,13 +91,16 @@ Teacher Part owns:
 - Concrete next lecture improvement action plan.
 - Generation context preview for future backend integration.
 
-Shared backend later owns:
+The authenticated Student service boundary now owns:
 
-- RAG indexing over teacher materials.
-- LLM-based adaptive assignment generation.
-- Student-memory-aware personalization.
-- Auto-grading and feedback generation.
-- Synchronizing student submissions into teacher analytics.
+- Course-scoped RAG indexing over teacher materials.
+- Receiving reviewed/targeted Teacher assignments.
+- Auto-grading, feedback, learning history, and concept mastery.
+- Exposing real submission aggregates to Teacher analytics.
+
+Teacher owns the grounded draft-generation review step and publishes only the
+approved result. A future single backend may move this ownership internally
+without changing the public contracts.
 
 ## Teacher Part Input and Output
 
@@ -77,8 +111,8 @@ Shared backend later owns:
 | Teacher login | Local SQLite seed data | Shared auth service |
 | Course and lecture metadata | Local SQLite seed data | Shared course database |
 | Completed slide/book materials | `teacher/materials/` seed files or local UI input | Teacher uploads through shared material API |
-| Student profiles | Mock local analytics data | Student Part submissions and learning history |
-| Weak concepts | Mock concept metrics | Shared analytics pipeline |
+| Student profiles | Real Student integration feed; explicit demo mode only | Shared managed database/analytics service |
+| Weak concepts | Real stored grading results | Shared managed analytics pipeline |
 | Base/required questions | Teacher Question Bank UI | Shared question seed service |
 | Teacher control notes | Question Bank scope / variation / priority controls | Shared assignment-generation constraints |
 
@@ -152,11 +186,14 @@ Login request:
 | `GET` | `/materials` | List material records |
 | `POST` | `/materials` | Add local text material for smoke testing |
 
-Future integration expectation:
+Current integration rule:
 
 - Student Part should not read Teacher Part material files directly.
-- Shared backend should ingest Teacher Part material records into the shared RAG/vector pipeline.
-- Student TA Bot and assignment generation should retrieve material through the shared backend.
+- Teacher sync sends extracted course material through the authenticated
+  integration API; Student indexes it with Titan embeddings (lexical fallback
+  when embeddings are unavailable).
+- Student TA Bot and grading retrieve only course-scoped chunks. Submissions
+  themselves travel through normal APIs, never through RAG.
 
 ### Question Seeds
 
@@ -201,11 +238,13 @@ Teacher control notes are stored in the current local prototype as structured te
 
 These should become first-class shared-backend fields during integration.
 
-Future integration expectation:
+Implemented local integration:
 
-- Shared backend should combine uploaded materials, question seeds, weak concepts, and student memory.
-- Student Part receives final assignments from shared backend, not directly from Teacher Part.
-- Required question seeds should be preserved as constraints in adaptive generation.
+- Teacher generation combines uploaded materials, question seeds, real weak
+  concepts and Student mastery context through Bedrock.
+- Student receives only reviewed assignments through the authenticated
+  publication endpoint.
+- Required seeds remain explicit Teacher constraints.
 
 ### Analytics
 
@@ -215,11 +254,12 @@ Future integration expectation:
 | `GET` | `/analytics/evidence` | Evidence view for weak concepts, affected students, related seeds, and confidence status |
 | `POST` | `/analytics/lecture-plan` | Generate concrete next lecture action plan |
 
-Future integration expectation:
+Implemented local integration:
 
-- Student submissions should become the source of analytics.
-- Teacher Part currently uses mock `ConceptMetric` and `StudentProfile` data.
-- Shared backend should update analytics after grading or learning-history updates.
+- Real Student submissions are the default analytics source and update after
+  grading or an audited score override.
+- `ConceptMetric` and `StudentProfile` are used only when
+  `TEACHER_DEMO_MODE=1` is intentionally enabled.
 
 ### Student Insights
 
@@ -227,17 +267,21 @@ Future integration expectation:
 | --- | --- | --- |
 | `GET` | `/students/insights` | List individual student profiles and recommendations |
 
-Future integration expectation:
+Implemented local integration:
 
-- Student Part owns real student activity and answer history.
-- Shared backend transforms student history into teacher-visible weak/strong topic summaries.
+- Student owns real activity, answers, grading, memory and chat history.
+- The integration feed transforms that history into Teacher-visible mastery,
+  weak/strong topics, submissions and recent TA Bot questions.
 
-## Shared Backend Contract Draft
+## Shared Backend Contract Compatibility
 
-The future shared backend should expose a unified assignment generation service similar to:
+The local services expose shared-compatible assignment routes:
 
 ```text
-POST /backend/assignments/generate
+POST /assignments/generate
+POST /assignments/{assignment_id}/publish
+POST /assignments/{assignment_id}/submissions
+GET  /assignments/{assignment_id}/analytics
 ```
 
 Suggested input:
@@ -283,7 +327,7 @@ This keeps the Student Part focused on assignment display/submission while prese
 
 ## Student Part Integration Notes
 
-Student Part should plan to consume these future shared backend outputs:
+Student Part now consumes these service outputs:
 
 - Current assignment by student and lecture.
 - Submission endpoint with answer payload.
@@ -291,7 +335,7 @@ Student Part should plan to consume these future shared backend outputs:
 - Learning history and weak-topic updates.
 - TA Bot responses grounded in the same teacher materials.
 
-Teacher Part should plan to consume these future shared backend outputs:
+Teacher Part now consumes these service outputs:
 
 - Aggregated concept metrics by course and lecture.
 - Per-student weak/strong topic summaries.
@@ -311,4 +355,6 @@ Teacher-side smoke test should validate:
 7. Teacher reviews class analytics, evidence view, teacher action list, and lecture recommendation.
 8. Teacher reviews individual student insight.
 
-Student-side smoke test can stay independent for now, but should later verify that shared backend can use Teacher Part materials and seeds to produce student-facing assignments.
+The combined smoke test must additionally sync a Teacher material into Student
+RAG, publish a reviewed assignment, submit and grade it as a Student, and verify
+the stored result on Teacher class, assignment and individual-student views.
