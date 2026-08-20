@@ -25,9 +25,6 @@ st.markdown("""
   background: linear-gradient(90deg, #2d0b78, #4b1ba8); color: white;
 }
 a { color: var(--classpilot-teal) !important; }
-[data-testid="stSidebarCollapseButton"], [data-testid="stExpandSidebarButton"], [data-testid="collapsedControl"] {
-  display: none !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -46,6 +43,16 @@ if "token" not in st.session_state:
     st.session_state.token = None
 if "lang" not in st.session_state:
     st.session_state.lang = "ja"
+
+# Keep the login screen uncluttered. Sidebar controls return after login.
+if not st.session_state.token:
+    st.markdown("""
+    <style>
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stExpandSidebarButton"],
+    [data-testid="collapsedControl"] { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ── Language selector pinned to top-right ──────────────────────────────
 _lang_bar_left, _lang_bar_right = st.columns([5, 1])
