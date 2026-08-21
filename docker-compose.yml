@@ -20,6 +20,8 @@ services:
       - student-api
     ports:
       - "8501:8501"
+    volumes:
+      - ./assets:/app/assets:ro
 
   teacher-api:
     build: ./teacher
@@ -45,6 +47,8 @@ services:
       - teacher-api
     ports:
       - "8601:8601"
+    volumes:
+      - ./assets:/app/assets:ro
 
 volumes:
   student-data:
