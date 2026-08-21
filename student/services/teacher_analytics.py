@@ -4,7 +4,6 @@ from collections import defaultdict
 from datetime import datetime, timezone
 import json
 
-from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session as DBSession
 
 from db.models import Assignment, ChatMessage, Course, Enrollment, Student, Submission
@@ -44,12 +43,20 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
                 *([Assignment.course_id == course.id] if course else []),
             ).all()
         }
-        seed_assignment_ids = {
-            row.assignment_id
-            for row in db.query(Submission.assignment_id).filter(
+        seed_assignments_query = (
+            db.query(Submission.assignment_id)
+            .join(Assignment, Submission.assignment_id == Assignment.id)
+            .filter(
                 Submission.student_id == student.id,
                 Submission.source == "seed",
-            ).distinct().all()
+            )
+        )
+        if course:
+            seed_assignments_query = seed_assignments_query.filter(
+                Assignment.course_id == course.id
+            )
+        seed_assignment_ids = {
+            row.assignment_id for row in seed_assignments_query.distinct().all()
         }
         total_assignments = len(current_assignment_ids | seed_assignment_ids)
         submissions_query = (
@@ -60,10 +67,10 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
             )
         )
         if course:
-            submissions_query = submissions_query.filter(or_(
-                and_(Submission.source == "real", Assignment.course_id == course.id),
-                Submission.source == "seed",
-            ))
+            submissions_query = submissions_query.filter(
+                Assignment.course_id == course.id,
+                Submission.source.in_(("real", "seed")),
+            )
         else:
             submissions_query = submissions_query.filter(
                 Submission.source.in_(("real", "seed"))

@@ -27,7 +27,15 @@ def render():
     col1.metric(t("student_count"), summary["total_students"])
     col2.metric(t("average_score"), f"{summary['average_score']:.1f}")
     col3.metric(t("completion"), f"{summary['completion_rate']:.1f}%")
-    col4.metric(t("question_seeds"), t("seed_total", total=summary["question_seed_count"], required=summary["required_question_count"]))
+    col4.metric(
+        t("question_seeds"),
+        t(
+            "seed_total",
+            total=summary["question_seed_count"],
+            required=summary["required_question_count"],
+        ),
+        help=t("question_seeds_help"),
+    )
 
     actions = summary.get("teacher_actions", [])
     if actions:

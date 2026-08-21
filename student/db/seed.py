@@ -11,6 +11,7 @@ import bcrypt
 # Allow running as `python -m db.seed` from student/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from config import DEFAULT_COURSE_EXTERNAL_KEY
 from db.database import SessionLocal, create_tables
 from db.models import Assignment, ChatMessage, Course, Enrollment, Lecture, Student, Submission
 
@@ -279,7 +280,9 @@ def seed():
 
         random.seed(42)
         now = datetime.utcnow()
-        legacy_course = db.query(Course).filter(Course.external_key == "legacy-course").one()
+        default_course = db.query(Course).filter(
+            Course.external_key == DEFAULT_COURSE_EXTERNAL_KEY
+        ).one()
 
         # ── Create lectures ───────────────────────────────────────────
         lecture_objs = {}  # topic -> Lecture
@@ -288,7 +291,7 @@ def seed():
             deadline = lecture_date + timedelta(days=7)
 
             lecture = Lecture(
-                course_id=legacy_course.id,
+                course_id=default_course.id,
                 external_key=f"legacy-lecture-{lec['lecture_number']}",
                 lecture_number=lec["lecture_number"],
                 title=lec["title"],
@@ -317,7 +320,7 @@ def seed():
             student_objs.append((student, s))
         db.flush()
         for student, _ in student_objs:
-            db.add(Enrollment(course_id=legacy_course.id, student_id=student.id))
+            db.add(Enrollment(course_id=default_course.id, student_id=student.id))
 
         # ── Create assignments per lecture ────────────────────────────
         for student, profile in student_objs:
@@ -336,7 +339,7 @@ def seed():
                     created = lecture.lecture_date + timedelta(hours=random.randint(1, 24))
 
                     assignment = Assignment(
-                        course_id=legacy_course.id,
+                        course_id=default_course.id,
                         student_id=student.id,
                         lecture_id=lecture.id,
                         topic=topic,
