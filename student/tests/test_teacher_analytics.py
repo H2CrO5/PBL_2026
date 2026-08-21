@@ -7,6 +7,8 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from config import DEFAULT_COURSE_EXTERNAL_KEY
+from db.database import _ensure_default_course
 from db.models import (
     Assignment, Base, ChatMessage, Course, CourseMaterial, Enrollment, Student, Submission
 )
@@ -109,6 +111,62 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
         self.assertEqual(student["chat_summary"], ["How do I verify a citation?"])
         self.assertEqual(feed["topic_metrics"][0]["wrong_rate"], 50.0)
         self.assertEqual(len(feed["score_trend"]), 1)
+
+    def test_legacy_course_migration_preserves_submissions(self):
+        migration_engine = create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(migration_engine)
+        migration_session = sessionmaker(bind=migration_engine)()
+        legacy = Course(
+            external_key="legacy-course",
+            title="Legacy Student Course",
+            term="unspecified",
+        )
+        student = Student(
+            student_code="legacy-student",
+            name="Legacy Student",
+            password_hash="not-used",
+        )
+        migration_session.add_all([legacy, student])
+        migration_session.flush()
+        migration_session.add(Enrollment(course_id=legacy.id, student_id=student.id))
+        assignment = Assignment(
+            course_id=legacy.id,
+            student_id=student.id,
+            topic="Python",
+            difficulty="easy",
+            question_text="Question",
+            correct_answer="Answer",
+            explanation="Explanation",
+            question_type="short_answer",
+        )
+        migration_session.add(assignment)
+        migration_session.flush()
+        migration_session.add(Submission(
+            assignment_id=assignment.id,
+            student_id=student.id,
+            answer_text="Answer",
+            is_correct=True,
+            score=100,
+            feedback="Correct",
+            source="seed",
+        ))
+        migration_session.commit()
+
+        with migration_engine.begin() as connection:
+            migrated_course_id = _ensure_default_course(connection)
+
+        migration_session.expire_all()
+        course = migration_session.query(Course).filter(
+            Course.external_key == DEFAULT_COURSE_EXTERNAL_KEY
+        ).one()
+        self.assertEqual(course.id, migrated_course_id)
+        self.assertEqual(migration_session.query(Submission).count(), 1)
+        self.assertEqual(migration_session.query(Assignment).one().course_id, course.id)
+        self.assertEqual(migration_session.query(Enrollment).one().course_id, course.id)
+        feed = build_teacher_feed(migration_session, DEFAULT_COURSE_EXTERNAL_KEY)
+        self.assertEqual(len(feed["students"]), 1)
+        self.assertEqual(feed["students"][0]["total_submissions"], 1)
+        migration_session.close()
 
     def test_student_memory_uses_real_latest_attempts(self):
         student = self.db.query(Student).filter(Student.student_code == "s1").one()

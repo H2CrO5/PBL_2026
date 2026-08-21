@@ -12,6 +12,17 @@ DOCUMENTS_DIR = BASE_DIR / "vectorstore" / "documents"
 # ── Database ───────────────────────────────────────────
 DATABASE_URL = os.getenv("STUDENT_DATABASE_URL", f"sqlite:///{DB_PATH}")
 
+# ── Shared course identity ──────────────────────────────
+# Student and Teacher must use the same external key so that submissions are
+# included in the Teacher analytics feed.
+DEFAULT_COURSE_EXTERNAL_KEY = os.getenv(
+    "DEFAULT_COURSE_EXTERNAL_KEY", "course-generative-ai-2026"
+)
+DEFAULT_COURSE_TITLE = os.getenv(
+    "DEFAULT_COURSE_TITLE", "Generative AI Systems for Education"
+)
+DEFAULT_COURSE_TERM = os.getenv("DEFAULT_COURSE_TERM", "Spring 2026")
+
 # ── AWS Bedrock ────────────────────────────────────────
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
