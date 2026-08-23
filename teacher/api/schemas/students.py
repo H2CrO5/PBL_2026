@@ -16,6 +16,7 @@ class RecentSubmissionResponse(BaseModel):
     score: float
     feedback: str
     attempt_number: int = 1
+    status: str = "graded"
     grading_source: str = "auto"
     source: str = "real"
     missing_concepts: list[str] = Field(default_factory=list)

@@ -335,6 +335,7 @@ def override_grade(
     submission.score = req.score
     submission.feedback = req.feedback
     submission.is_correct = req.score >= 60
+    submission.status = "graded"
     submission.grading_source = "teacher_override"
     submission.reviewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.flush()

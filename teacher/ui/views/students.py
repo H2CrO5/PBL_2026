@@ -59,7 +59,11 @@ def render():
     if not recent:
         st.info(t("no_submissions"))
     for submission in recent:
-        icon = "✅" if submission["is_correct"] else "❌"
+        icon = (
+            "⚠️"
+            if submission.get("status") == "grading_failed"
+            else "✅" if submission["is_correct"] else "❌"
+        )
         with st.expander(
             f"{icon} {submission['topic']} — {submission['score']:.0f}/100"
         ):

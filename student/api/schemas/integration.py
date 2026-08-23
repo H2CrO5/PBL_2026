@@ -116,6 +116,7 @@ class TeacherSubmissionItem(BaseModel):
     feedback: str
     student_feedback: str
     attempt_number: int
+    status: Literal["graded", "grading_failed"] = "graded"
     grading_source: str
     source: Literal["real", "seed", "synthetic"] = "real"
     missing_concepts: list[str]

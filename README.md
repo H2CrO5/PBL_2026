@@ -12,8 +12,13 @@ transport for submission records.
 
 ## First-time setup
 
+Python 3.10 or newer is required. The setup script uses `python3` by default;
+set `PYTHON_BIN` when your system default is older.
+
 ```bash
 ./setup_classpilot.sh
+# Example when python3 is older than 3.10:
+PYTHON_BIN=python3.12 ./setup_classpilot.sh
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 

@@ -101,6 +101,14 @@ def invoke_json(
     except json.JSONDecodeError:
         pass
 
+    # Some models return otherwise valid JSON with literal newlines or tabs
+    # inside string values. Accept those control characters after the strict
+    # parse fails so live grading does not discard a usable response.
+    try:
+        return json.loads(text, strict=False)
+    except json.JSONDecodeError:
+        pass
+
     # Try to find JSON in the response
     start = text.find("{")
     end = text.rfind("}") + 1
@@ -108,7 +116,10 @@ def invoke_json(
         try:
             return json.loads(text[start:end])
         except json.JSONDecodeError:
-            pass
+            try:
+                return json.loads(text[start:end], strict=False)
+            except json.JSONDecodeError:
+                pass
 
     # Try array
     start = text.find("[")
@@ -117,6 +128,9 @@ def invoke_json(
         try:
             return json.loads(text[start:end])
         except json.JSONDecodeError:
-            pass
+            try:
+                return json.loads(text[start:end], strict=False)
+            except json.JSONDecodeError:
+                pass
 
     raise ValueError(f"Could not parse JSON from LLM response: {text[:200]}")

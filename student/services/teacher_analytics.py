@@ -75,9 +75,17 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
             submissions_query = submissions_query.filter(
                 Submission.source.in_(("real", "seed"))
             )
+        submission_candidates = submissions_query.order_by(
+            Submission.submitted_at.desc()
+        ).all()
         submissions = latest_attempts(
-            submissions_query.order_by(Submission.submitted_at.desc()).all(),
+            submission_candidates,
             allowed_sources=("real", "seed"),
+        )
+        recent_submissions = latest_attempts(
+            submission_candidates,
+            allowed_sources=("real", "seed"),
+            allowed_statuses=("graded", "grading_failed"),
         )
 
         topic_scores: dict[str, list[float]] = defaultdict(list)
@@ -130,13 +138,14 @@ def build_teacher_feed(db: DBSession, external_course_id: str | None = None) -> 
                     "feedback": submission.feedback,
                     "student_feedback": submission.feedback,
                     "attempt_number": submission.attempt_number,
+                    "status": submission.status,
                     "grading_source": submission.grading_source,
                     "source": submission.source,
                     "missing_concepts": json.loads(submission.missing_concepts or "[]"),
                     "teacher_error_pattern": submission.teacher_error_pattern,
                     "submitted_at": submission.submitted_at,
                 }
-                for submission in submissions[:10]
+                for submission in recent_submissions[:10]
             ],
             "chat_summary": [message.content[:240] for message in recent_questions],
         })

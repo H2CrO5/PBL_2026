@@ -13,6 +13,7 @@ from db.models import (
     Assignment, Base, ChatMessage, Course, CourseMaterial, Enrollment, Student, Submission
 )
 from services.teacher_analytics import build_teacher_feed
+from llm import bedrock_client
 from api.routers.integration import (
     override_grade,
     assignment_analytics,
@@ -187,6 +188,14 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
             get_current_student(None, self.db)
         self.assertEqual(raised.exception.status_code, 401)
 
+    @patch("llm.bedrock_client.invoke")
+    def test_bedrock_json_accepts_literal_newline_in_string(self, invoke):
+        invoke.return_value = '{"answer_text": "first line\nsecond line"}'
+        self.assertEqual(
+            bedrock_client.invoke_json("prompt"),
+            {"answer_text": "first line\nsecond line"},
+        )
+
     def test_assignment_publish_is_idempotent(self):
         request = AssignmentPublishRequest(
             external_assignment_id="asg-1",
@@ -360,6 +369,7 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
             score=40,
             feedback="Automatic feedback",
             source="real",
+            status="grading_failed",
         )
         self.db.add(submission)
         self.db.commit()
@@ -376,6 +386,7 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
         self.db.refresh(submission)
         self.assertEqual(submission.auto_score, 40)
         self.assertEqual(submission.score, 75)
+        self.assertEqual(submission.status, "graded")
 
     @patch("api.routers.assignments.bedrock_client.invoke_json")
     def test_grading_failure_saves_answer_without_consuming_retry(self, invoke_json):
@@ -405,6 +416,18 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
         ).one()
         self.assertEqual(saved.status, "grading_failed")
         self.assertEqual(saved.answer_text, "My answer")
+
+        feed = build_teacher_feed(self.db)
+        student_feed = feed["students"][0]
+        self.assertEqual(student_feed["total_submissions"], 2)
+        self.assertEqual(student_feed["completion_rate"], 66.7)
+        failed = next(
+            item
+            for item in student_feed["recent_submissions"]
+            if item["submission_id"] == saved.id
+        )
+        self.assertEqual(failed["status"], "grading_failed")
+        self.assertEqual(failed["answer_text"], "My answer")
 
 
 if __name__ == "__main__":
