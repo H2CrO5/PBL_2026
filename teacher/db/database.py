@@ -30,7 +30,10 @@ def create_tables():
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))
 
     add_columns("courses", {"external_key": "TEXT"})
-    add_columns("materials", {"external_key": "TEXT"})
+    add_columns("materials", {
+        "external_key": "TEXT",
+        "audience": "TEXT NOT NULL DEFAULT 'student'",
+    })
     add_columns("question_seeds", {
         "points": "FLOAT NOT NULL DEFAULT 100",
         "max_attempts": "INTEGER NOT NULL DEFAULT 1",
@@ -59,6 +62,16 @@ def create_tables():
         ))
         connection.execute(text(
             "UPDATE materials SET external_key = 'material-' || id WHERE external_key IS NULL"
+        ))
+        # Older versions treated every RAG material as student-visible. Keep
+        # normal lecture files public, but classify clearly labeled teacher
+        # notes as internal and stop advertising them as indexed for Student.
+        connection.execute(text(
+            "UPDATE materials SET audience = 'teacher', ingestion_status = 'teacher_only' "
+            "WHERE lower(title) LIKE 'teacher note:%' "
+            "OR lower(title) LIKE 'teacher prompt:%' "
+            "OR title LIKE '教員メモ:%' OR title LIKE '教員メモ：%' "
+            "OR title LIKE '教員向けメモ:%' OR title LIKE '教員向けメモ：%'"
         ))
         # Keep existing local demo databases aligned with the current UI seed.
         connection.execute(text(

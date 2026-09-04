@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.routers.materials import get_student_materials
+from db.database import _student_safe_content
 from db.models import Base, Course, CourseMaterial, Enrollment, Lecture, Student
 
 
@@ -63,8 +64,19 @@ class StudentMaterialsTest(unittest.TestCase):
                 lecture_id=enrolled_lecture.id,
                 title="Visible Notes",
                 material_type="note",
+                audience="student",
                 content="The full synchronized material content.",
                 ingestion_status="ready_lexical",
+            ),
+            CourseMaterial(
+                external_key="material-teacher-only",
+                course_id=enrolled_course.id,
+                lecture_id=enrolled_lecture.id,
+                title="Teacher Notes",
+                material_type="note",
+                audience="teacher",
+                content="This internal note must not be visible.",
+                ingestion_status="teacher_only",
             ),
             CourseMaterial(
                 external_key="material-private",
@@ -72,6 +84,7 @@ class StudentMaterialsTest(unittest.TestCase):
                 lecture_id=other_lecture.id,
                 title="Private Notes",
                 material_type="note",
+                audience="student",
                 content="This must not be visible.",
                 ingestion_status="ready_lexical",
             ),
@@ -100,6 +113,20 @@ class StudentMaterialsTest(unittest.TestCase):
             get_student_materials("course-private", self.student, self.db)
 
         self.assertEqual(raised.exception.status_code, 404)
+
+    def test_teacher_sections_are_removed_from_legacy_public_content(self):
+        content = (
+            "# Topic\nStudent explanation.\n"
+            "Teacher prompt: Verify citations.\nInternal instruction.\n"
+            "[Slide 2]\nStudent practice."
+        )
+
+        safe = _student_safe_content(content)
+
+        self.assertIn("Student explanation.", safe)
+        self.assertIn("Student practice.", safe)
+        self.assertNotIn("Teacher prompt", safe)
+        self.assertNotIn("Internal instruction", safe)
 
 
 if __name__ == "__main__":

@@ -59,11 +59,12 @@ class MaterialSyncRequest(BaseModel):
     lecture_title: str
     title: str
     material_type: str
+    audience: Literal["student", "teacher"] = "teacher"
     content: str = Field(min_length=1)
 
 
 class MaterialSyncResponse(BaseModel):
-    material_id: int
+    material_id: int | None
     external_material_id: str
     ingestion_status: str
     chunk_count: int

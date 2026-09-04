@@ -47,7 +47,7 @@ Request. `.env` is ignored by Git.
 ## Teacher workflow
 
 1. Open **Assignment Builder** and select an existing lecture, or use **Add Lecture** to create one.
-2. Open **Materials**, upload a PDF/PPTX/MD/TXT file of up to 20 MB, or select **Sync all materials to Student RAG**.
+2. Open **Materials**, upload a PDF/PPTX/MD/TXT file of up to 20 MB, and choose whether it is visible to students. Student-visible materials appear in the Student app and Student RAG; teacher-only notes remain in the Teacher service.
 3. Return to **Assignment Builder** and generate a grounded Bedrock draft, or add a seed.
 4. Review the question and select **Publish to Student app**.
 5. The student answers it in the Student application.

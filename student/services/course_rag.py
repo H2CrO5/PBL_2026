@@ -83,7 +83,10 @@ def retrieve_course(
     chunks = (
         db.query(MaterialChunk)
         .join(CourseMaterial, MaterialChunk.material_id == CourseMaterial.id)
-        .filter(CourseMaterial.course_id == course_id)
+        .filter(
+            CourseMaterial.course_id == course_id,
+            CourseMaterial.audience == "student",
+        )
         .all()
     )
     if not chunks:
