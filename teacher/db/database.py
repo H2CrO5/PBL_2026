@@ -34,9 +34,14 @@ def create_tables():
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))
 
     add_columns("courses", {"external_key": "TEXT"})
+    material_columns = (
+        {column["name"] for column in inspector.get_columns("materials")}
+        if "materials" in inspector.get_table_names()
+        else set()
+    )
     add_columns("materials", {
         "external_key": "TEXT",
-        "student_visible": "BOOLEAN NOT NULL DEFAULT 0",
+        "audience": "TEXT NOT NULL DEFAULT 'student'",
         "sync_error": "TEXT",
     })
     add_columns("question_seeds", {
@@ -51,6 +56,11 @@ def create_tables():
         "recommended_seed_titles": "TEXT NOT NULL DEFAULT '[]'",
     })
     with engine.begin() as connection:
+        if "student_visible" in material_columns and "audience" not in material_columns:
+            connection.execute(text(
+                "UPDATE materials SET audience = CASE "
+                "WHEN student_visible = 1 THEN 'student' ELSE 'teacher' END"
+            ))
         # Historical demo rows used "ready" before shared RAG existed. Mark
         # them explicitly as waiting for sync instead of implying indexing.
         connection.execute(text(
@@ -68,11 +78,15 @@ def create_tables():
         connection.execute(text(
             "UPDATE materials SET external_key = 'material-' || id WHERE external_key IS NULL"
         ))
-        # Bundled seed materials are student-facing. Legacy teacher-authored
-        # notes and uploads remain private until the teacher publishes them.
+        # Older versions treated every RAG material as student-visible. Keep
+        # normal lecture files public, but classify clearly labeled teacher
+        # notes as internal and stop advertising them as indexed for Student.
         connection.execute(text(
-            "UPDATE materials SET student_visible = 1 "
-            "WHERE external_key LIKE 'material-%-%'"
+            "UPDATE materials SET audience = 'teacher', ingestion_status = 'teacher_only' "
+            "WHERE lower(title) LIKE 'teacher note:%' "
+            "OR lower(title) LIKE 'teacher prompt:%' "
+            "OR title LIKE '教員メモ:%' OR title LIKE '教員メモ：%' "
+            "OR title LIKE '教員向けメモ:%' OR title LIKE '教員向けメモ：%'"
         ))
         # Keep existing local demo databases aligned with the current UI seed.
         connection.execute(text(

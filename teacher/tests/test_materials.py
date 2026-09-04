@@ -16,11 +16,17 @@ from sqlalchemy.pool import StaticPool
 
 from api.routers.materials import (
     _extract_upload,
+    _sync_payload,
     create_lecture,
     create_material,
+    update_material_audience,
     upload_material,
 )
-from api.schemas.materials import LectureCreateRequest, MaterialCreateRequest
+from api.schemas.materials import (
+    LectureCreateRequest,
+    MaterialAudienceRequest,
+    MaterialCreateRequest,
+)
 from db.models import Base, Course, Lecture, Material, Teacher
 from services.student_data import StudentDataUnavailable
 
@@ -49,6 +55,17 @@ class LectureManagementTest(unittest.TestCase):
         )
         self.session.add(self.course)
         self.session.commit()
+
+    def _lecture(self):
+        lecture = Lecture(
+            course_id=self.course.id,
+            lecture_number=1,
+            title="Grounded Generation",
+            learning_objectives="[]",
+        )
+        self.session.add(lecture)
+        self.session.commit()
+        return lecture
 
     def tearDown(self):
         self.session.close()
@@ -171,7 +188,7 @@ class LectureManagementTest(unittest.TestCase):
                 course_id=self.course.id,
                 lecture_id=lecture.id,
                 title="",
-                student_visible=True,
+                audience="student",
                 file=upload,
                 teacher=self.teacher,
                 db=self.session,
@@ -179,7 +196,7 @@ class LectureManagementTest(unittest.TestCase):
 
         self.assertEqual(response.title, "grounding")
         self.assertEqual(response.ingestion_status, "local_only")
-        self.assertTrue(response.student_visible)
+        self.assertEqual(response.audience, "student")
         stored = self.session.query(Material).one()
         self.assertIn("Use course evidence", stored.content)
         self.assertEqual(stored.source_path, "stored/grounding.md")
@@ -202,7 +219,7 @@ class LectureManagementTest(unittest.TestCase):
                 title="Published notes",
                 material_type="note",
                 content="Ground claims in evidence.",
-                student_visible=True,
+                audience="student",
             ),
             self.teacher,
             self.session,
@@ -212,7 +229,75 @@ class LectureManagementTest(unittest.TestCase):
         self.assertIn("temporary outage", response.sync_error)
         stored = self.session.query(Material).one()
         self.assertEqual(stored.content, "Ground claims in evidence.")
-        self.assertTrue(stored.student_visible)
+        self.assertEqual(stored.audience, "student")
+
+    def test_manual_material_defaults_to_teacher_only(self):
+        lecture = self._lecture()
+        result = create_material(
+            MaterialCreateRequest(
+                course_id=self.course.id,
+                lecture_id=lecture.id,
+                title="Internal checklist",
+                material_type="note",
+                content="Only teachers should read this.",
+            ),
+            self.teacher,
+            self.session,
+        )
+
+        self.assertEqual(result.audience, "teacher")
+        stored = self.session.query(Material).filter(Material.id == result.id).one()
+        self.assertEqual(stored.audience, "teacher")
+
+    def test_student_sync_payload_removes_labeled_teacher_sections(self):
+        lecture = self._lecture()
+        material = Material(
+            external_key="course-test:material-public",
+            course_id=self.course.id,
+            lecture_id=lecture.id,
+            title="Lecture slides",
+            material_type="slide",
+            audience="student",
+            content=(
+                "# Topic\nStudent explanation.\n\n"
+                "Teacher note: Check the rubric.\nNever show this sentence.\n\n"
+                "# Practice\nStudent activity."
+            ),
+        )
+        self.session.add(material)
+        self.session.commit()
+
+        payload = _sync_payload(material)
+
+        self.assertEqual(payload["audience"], "student")
+        self.assertIn("Student explanation.", payload["content"])
+        self.assertIn("Student activity.", payload["content"])
+        self.assertNotIn("Teacher note", payload["content"])
+        self.assertNotIn("Never show", payload["content"])
+
+    def test_teacher_can_change_existing_material_visibility(self):
+        lecture = self._lecture()
+        material = Material(
+            external_key="course-test:material-private",
+            course_id=self.course.id,
+            lecture_id=lecture.id,
+            title="Internal checklist",
+            material_type="note",
+            audience="teacher",
+            content="Student-safe checklist.",
+        )
+        self.session.add(material)
+        self.session.commit()
+
+        result = update_material_audience(
+            material.id,
+            MaterialAudienceRequest(audience="student"),
+            self.teacher,
+            self.session,
+        )
+
+        self.assertEqual(result.audience, "student")
+        self.assertEqual(result.ingestion_status, "local_only")
 
 
 if __name__ == "__main__":

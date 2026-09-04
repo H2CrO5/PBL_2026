@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, Text
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -74,10 +74,10 @@ class Material(Base):
     lecture_id = Column(Integer, ForeignKey("lectures.id"), nullable=False)
     title = Column(Text, nullable=False)
     material_type = Column(Text, nullable=False)  # slide / book / note
+    audience = Column(Text, nullable=False, default="teacher")  # student / teacher
     source_path = Column(Text, nullable=True)
     content = Column(Text, nullable=False)
     ingestion_status = Column(Text, default="ready")
-    student_visible = Column(Boolean, nullable=False, default=False)
     sync_error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

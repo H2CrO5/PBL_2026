@@ -187,7 +187,7 @@ Login request:
 | `GET` | `/materials` | List material records |
 | `POST` | `/materials` | Add local text material for smoke testing |
 | `POST` | `/materials/upload` | Upload and extract a PDF/PPTX/MD/TXT file of up to 20 MB |
-| `PATCH` | `/materials/{material_id}/visibility` | Publish or hide a material in Student |
+| `POST` | `/materials/{material_id}/audience` | Set a material to `student` or `teacher` audience |
 
 Current integration rule:
 
@@ -197,9 +197,9 @@ Current integration rule:
   when embeddings are unavailable).
 - Student TA Bot and grading retrieve only course-scoped chunks. Submissions
   themselves travel through normal APIs, never through RAG.
-- Teachers explicitly control `student_visible`. Student material lists and TA
-  retrieval exclude private materials, so teacher notes cannot leak through
-  either the page or the assistant.
+- Teachers explicitly control the material `audience`. Student material lists
+  and TA retrieval exclude teacher-only materials, so teacher notes cannot leak
+  through either the page or the assistant.
 - A material is committed locally before the Student/RAG call. If that call
   fails, the record and a retryable `sync_error` remain visible to the teacher
   instead of the upload appearing to vanish.

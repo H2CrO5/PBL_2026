@@ -145,9 +145,10 @@ before/after progress delta.
 
 Course materials already crossed the Teacher/Student service boundary for RAG,
 but there was no student-facing endpoint or page and no publication permission.
-Materials now have an explicit `student_visible` flag. Teachers can publish or
-hide each material, enrolled students can read published content grouped by
-lecture, and Student TA retrieval is restricted to the same published set.
+Materials now have an explicit `student` or `teacher` audience. Teachers can
+publish or hide each material, enrolled students can read published content
+grouped by lecture, and Student TA retrieval is restricted to the same
+published set.
 
 ### Upload failures were difficult to diagnose
 
@@ -158,10 +159,13 @@ visible retryable record with the error instead of losing the teacher's work.
 
 ## Verification after the follow-up
 
-- Student unit tests: 16 passed.
-- Teacher unit tests: 13 passed, including Markdown persistence, Japanese CP932
+- Student unit tests: 20 passed.
+- Teacher unit tests: 18 passed, including Markdown persistence, Japanese CP932
   text, PowerPoint extraction and password-protected PDF handling.
-- Offline eval gates: grading, generation, TA grounding and analytics all passed.
+- Offline eval gates: grading consistency/correctness agreement `1.0/1.0`,
+  generation validity/concept/difficulty match `0.955/0.955/0.955`, TA
+  grounding/hallucination `0.921/0.039`, and analytics faithfulness `0.97`; all
+  gates passed.
 - Live-service workflow: 14/14 checks passed, including material
   publish/hide/republish, Teacher Bedrock draft generation, assignment
   publication, Bedrock grading, progress increment, progress delta and timeline
@@ -171,8 +175,23 @@ visible retryable record with the error instead of losing the teacher's work.
 - Concurrency regression: 300 complete Student flows at concurrency 50 produced
   2,100 successful flow responses plus five session-isolation responses, no
   failed flow, and correct same-user session isolation. Local p95 flow latency
-  was 11.6 seconds; this is a correctness test
+  was 9.87 seconds; this is a correctness test
   on the SQLite development stack, not a production capacity claim.
+
+### Collaborator update retained
+
+The later collaborator changes from `origin/main` were merged instead of
+reimplemented. Their Student material viewer remains the basis of the feature:
+it adds the Student navigation entry, groups published materials by course and
+lecture, expands the material text in place, and provides a text download. The
+follow-up collaborator visibility change also remains canonical: `audience =
+student|teacher` is used by both services, Teacher-only content is removed from
+the Student index, and Teacher notes are excluded from public material text.
+
+The local upload reliability, retry state, legacy-database migration, progress
+logic and test harnesses were adapted around those contributions. A browser
+check against the merged demo confirmed the grouped lecture view, readable
+material body and download control.
 
 ### Teacher-side concurrency and generation follow-up
 
@@ -196,8 +215,8 @@ not cover:
 
 After these fixes, 150 complete Teacher flows at concurrency 30 plus six Bedrock
 generation requests at concurrency 3 produced 1,515 HTTP 200 responses with no
-failed flow and correct same-teacher session isolation. The read phase completed
-in 9.3 seconds at 16.19 flows/second with 9.23-second p95 flow latency. Before
+failed flow and correct same-teacher session isolation. The final read phase
+completed in 9.13 seconds at 16.44 flows/second with 9.09-second p95 flow latency. Before
 the dashboard cache, the same read phase took 34.7 seconds with 33.0-second p95
 latency. A moderate run of 60 flows at concurrency 15 also passed all 605 HTTP
 requests, completing in 2.43 seconds with 2.39-second p95 flow latency.

@@ -55,7 +55,7 @@ def get_student_materials(
         )
         .filter(
             CourseMaterial.course_id.in_(course_ids),
-            CourseMaterial.student_visible.is_(True),
+            CourseMaterial.audience == "student",
         )
         .order_by(
             Course.title.asc(),

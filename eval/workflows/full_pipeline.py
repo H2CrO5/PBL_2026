@@ -91,7 +91,7 @@ def run_full_pipeline(
                     "course_id": str(teacher_dashboard["course_id"]),
                     "lecture_id": str(lecture["id"]),
                     "title": material_title,
-                    "student_visible": True,
+                    "audience": "student",
                 },
                 files={
                     "file": (
@@ -117,10 +117,10 @@ def run_full_pipeline(
                 for item in visible_material_rows
             )
 
-            _checked(client.patch(
-                f"{teacher_url.rstrip('/')}/materials/{material['id']}/visibility",
+            _checked(client.post(
+                f"{teacher_url.rstrip('/')}/materials/{material['id']}/audience",
                 headers=teacher_headers,
-                json={"student_visible": False},
+                json={"audience": "teacher"},
             ), "hide material from students")
             hidden_materials = _checked(client.get(
                 f"{student_url.rstrip('/')}/materials",
@@ -133,10 +133,10 @@ def run_full_pipeline(
                 for item in hidden_material_rows
             )
 
-            _checked(client.patch(
-                f"{teacher_url.rstrip('/')}/materials/{material['id']}/visibility",
+            _checked(client.post(
+                f"{teacher_url.rstrip('/')}/materials/{material['id']}/audience",
                 headers=teacher_headers,
-                json={"student_visible": True},
+                json={"audience": "student"},
             ), "republish material to students")
             republished_materials = _checked(client.get(
                 f"{student_url.rstrip('/')}/materials",

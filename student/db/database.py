@@ -4,6 +4,8 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 from config import (
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
     DATABASE_URL,
     DB_PATH,
     DEFAULT_COURSE_EXTERNAL_KEY,
@@ -21,6 +23,49 @@ connect_args = (
 )
 engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
+
+def _student_safe_content(content: str) -> str:
+    """Remove explicitly labeled teacher-only sections from public content."""
+    public_lines = []
+    skipping_internal = False
+    internal_prefixes = (
+        "teacher note:",
+        "teacher note：",
+        "teacher prompt:",
+        "teacher prompt：",
+        "教員メモ:",
+        "教員メモ：",
+        "教員向けメモ:",
+        "教員向けメモ：",
+    )
+    for line in content.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+        if any(lowered.startswith(prefix) for prefix in internal_prefixes):
+            skipping_internal = True
+            continue
+        if skipping_internal and (
+            stripped.startswith("#")
+            or stripped.lower().startswith("[slide ")
+            or stripped.lower().startswith("[page ")
+        ):
+            skipping_internal = False
+        if not skipping_internal:
+            public_lines.append(line)
+    return "\n".join(public_lines).strip()
+
+
+def _lexical_chunks(content: str) -> list[str]:
+    chunks = []
+    start = 0
+    step = max(1, CHUNK_SIZE - CHUNK_OVERLAP)
+    while start < len(content):
+        chunk = content[start:start + CHUNK_SIZE].strip()
+        if chunk:
+            chunks.append(chunk)
+        start += step
+    return chunks
 
 
 def _ensure_default_course(connection) -> int:
@@ -156,20 +201,85 @@ def create_tables():
         "course_id": "INTEGER",
         "assignment_id": "INTEGER",
     })
+    material_columns = (
+        {column["name"] for column in inspector.get_columns("course_materials")}
+        if "course_materials" in inspector.get_table_names()
+        else set()
+    )
     add_columns("course_materials", {
-        "student_visible": "BOOLEAN NOT NULL DEFAULT 0",
+        "audience": "TEXT NOT NULL DEFAULT 'student'",
     })
 
     # Preserve prototype records while moving them to the course identity used
     # by Teacher. This is idempotent and retains existing submissions.
     with engine.begin() as connection:
         _ensure_default_course(connection)
-        # Preserve visibility only for bundled demo materials synchronized
-        # before publication controls existed.
-        connection.execute(text(
-            "UPDATE course_materials SET student_visible = 1 "
-            "WHERE external_key LIKE 'material-%-%'"
-        ))
+        # Translate the earlier boolean publication flag when upgrading a
+        # database created between the first viewer and the audience model.
+        if "student_visible" in material_columns and "audience" not in material_columns:
+            connection.execute(text(
+                "UPDATE course_materials SET audience = CASE "
+                "WHEN student_visible = 1 THEN 'student' ELSE 'teacher' END"
+            ))
+
+        # Remove previously leaked teacher-note records and their RAG chunks.
+        private_ids = [
+            row[0]
+            for row in connection.execute(text(
+                "SELECT id FROM course_materials "
+                "WHERE audience = 'teacher' "
+                "OR lower(title) LIKE 'teacher note:%' "
+                "OR lower(title) LIKE 'teacher prompt:%' "
+                "OR title LIKE '教員メモ:%' OR title LIKE '教員メモ：%' "
+                "OR title LIKE '教員向けメモ:%' OR title LIKE '教員向けメモ：%'"
+            )).all()
+        ]
+        for material_id in private_ids:
+            connection.execute(
+                text("DELETE FROM material_chunks WHERE material_id = :material_id"),
+                {"material_id": material_id},
+            )
+            connection.execute(
+                text("DELETE FROM course_materials WHERE id = :material_id"),
+                {"material_id": material_id},
+            )
+
+        # Older public materials may contain labeled Teacher note/prompt
+        # sections inside otherwise student-facing documents. Sanitize both
+        # the material body and its lexical index during migration.
+        rows = connection.execute(text(
+            "SELECT id, content FROM course_materials WHERE audience = 'student'"
+        )).all()
+        for material_id, content in rows:
+            safe_content = _student_safe_content(content)
+            if safe_content == content:
+                continue
+            connection.execute(
+                text("DELETE FROM material_chunks WHERE material_id = :material_id"),
+                {"material_id": material_id},
+            )
+            if not safe_content:
+                connection.execute(
+                    text("DELETE FROM course_materials WHERE id = :material_id"),
+                    {"material_id": material_id},
+                )
+                continue
+            connection.execute(text(
+                "UPDATE course_materials SET content = :content, "
+                "ingestion_status = 'ready_lexical', updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = :material_id"
+            ), {"content": safe_content, "material_id": material_id})
+            for index, chunk in enumerate(_lexical_chunks(safe_content)):
+                connection.execute(text(
+                    "INSERT INTO material_chunks "
+                    "(material_id, chunk_index, text, embedding, source_locator) "
+                    "VALUES (:material_id, :chunk_index, :text, NULL, :source_locator)"
+                ), {
+                    "material_id": material_id,
+                    "chunk_index": index,
+                    "text": chunk,
+                    "source_locator": f"chunk-{index + 1}",
+                })
 
 
 def get_db():

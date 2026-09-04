@@ -131,7 +131,7 @@ class ProgressAndMaterialsTest(unittest.TestCase):
                 title="Visible",
                 material_type="note",
                 content="Visible course content",
-                student_visible=True,
+                audience="student",
             ),
             CourseMaterial(
                 external_key="private-material",
@@ -140,7 +140,7 @@ class ProgressAndMaterialsTest(unittest.TestCase):
                 title="Answer key",
                 material_type="note",
                 content="Private answer key",
-                student_visible=False,
+                audience="teacher",
             ),
         ])
         self.db.commit()
@@ -159,7 +159,7 @@ class ProgressAndMaterialsTest(unittest.TestCase):
             title="Visible RAG",
             material_type="note",
             content="public grounding evidence",
-            student_visible=True,
+            audience="student",
         )
         private = CourseMaterial(
             external_key="private-rag",
@@ -168,7 +168,7 @@ class ProgressAndMaterialsTest(unittest.TestCase):
             title="Private RAG",
             material_type="note",
             content="secret answer key",
-            student_visible=False,
+            audience="teacher",
         )
         self.db.add_all([visible, private])
         self.db.flush()

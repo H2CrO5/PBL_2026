@@ -84,10 +84,11 @@ def retrieve_course(
     chunks_query = (
         db.query(MaterialChunk)
         .join(CourseMaterial, MaterialChunk.material_id == CourseMaterial.id)
-        .filter(CourseMaterial.course_id == course_id)
+        .filter(
+            CourseMaterial.course_id == course_id,
+            CourseMaterial.audience == "student",
+        )
     )
-    if visible_only:
-        chunks_query = chunks_query.filter(CourseMaterial.student_visible.is_(True))
     chunks = chunks_query.all()
     if not chunks:
         return []

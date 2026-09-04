@@ -11,11 +11,11 @@ from api.dependencies import get_current_teacher
 from api.schemas.materials import (
     LectureCreateRequest,
     LectureResponse,
+    MaterialAudienceRequest,
     MaterialCreateRequest,
     MaterialResponse,
     MaterialSyncAllResponse,
     MaterialSyncResponse,
-    MaterialVisibilityRequest,
 )
 from db.database import get_db
 from db.models import Course, Lecture, Material, Teacher
@@ -24,6 +24,37 @@ from services import material_storage
 from config import MAX_MATERIAL_UPLOAD_BYTES
 
 router = APIRouter(prefix="/materials", tags=["materials"])
+
+
+def _student_safe_content(content: str) -> str:
+    """Remove explicitly labeled teacher-only sections from public content."""
+    public_lines = []
+    skipping_internal = False
+    internal_prefixes = (
+        "teacher note:",
+        "teacher note：",
+        "teacher prompt:",
+        "teacher prompt：",
+        "教員メモ:",
+        "教員メモ：",
+        "教員向けメモ:",
+        "教員向けメモ：",
+    )
+    for line in content.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+        if any(lowered.startswith(prefix) for prefix in internal_prefixes):
+            skipping_internal = True
+            continue
+        if skipping_internal and (
+            stripped.startswith("#")
+            or stripped.lower().startswith("[slide ")
+            or stripped.lower().startswith("[page ")
+        ):
+            skipping_internal = False
+        if not skipping_internal:
+            public_lines.append(line)
+    return "\n".join(public_lines).strip()
 
 
 def _lecture_response(lecture: Lecture) -> LectureResponse:
@@ -45,8 +76,8 @@ def _material_response(material: Material) -> MaterialResponse:
         lecture_title=lecture.title,
         title=material.title,
         material_type=material.material_type,
+        audience=material.audience,
         ingestion_status=material.ingestion_status,
-        student_visible=material.student_visible,
         sync_error=material.sync_error,
         content_preview=material.content[:220],
         created_at=material.created_at,
@@ -146,9 +177,9 @@ def create_material(
         lecture_id=lecture.id,
         title=req.title,
         material_type=req.material_type,
+        audience=req.audience,
         content=req.content,
         ingestion_status="local_only",
-        student_visible=req.student_visible,
     )
     db.add(material)
     db.flush()
@@ -213,7 +244,7 @@ async def upload_material(
     course_id: int = Form(...),
     lecture_id: int = Form(...),
     title: str = Form(""),
-    student_visible: bool = Form(False),
+    audience: str = Form("teacher"),
     file: UploadFile = File(...),
     teacher: Teacher = Depends(get_current_teacher),
     db: DBSession = Depends(get_db),
@@ -228,6 +259,8 @@ async def upload_material(
     ).first()
     if course is None or lecture is None:
         raise HTTPException(status_code=404, detail="Course or lecture not found")
+    if audience not in {"student", "teacher"}:
+        raise HTTPException(status_code=422, detail="Invalid material audience")
     raw = await file.read(MAX_MATERIAL_UPLOAD_BYTES + 1)
     if not raw:
         raise HTTPException(status_code=422, detail="Material file is empty")
@@ -268,10 +301,10 @@ async def upload_material(
         lecture_id=lecture.id,
         title=title.strip() or Path(file.filename or "Material").stem,
         material_type=material_type,
+        audience=audience,
         source_path=source_path,
         content=extracted,
         ingestion_status="local_only",
-        student_visible=student_visible,
     )
     db.add(material)
     db.flush()
@@ -286,6 +319,16 @@ async def upload_material(
 
 
 def _sync_payload(material: Material) -> dict:
+    content = (
+        _student_safe_content(material.content)
+        if material.audience == "student"
+        else material.content
+    )
+    audience = material.audience
+    if audience == "student" and not content:
+        # A document containing only explicitly marked teacher sections has no
+        # student-facing material to publish.
+        audience = "teacher"
     return {
         "external_material_id": material.external_key,
         "external_course_id": material.lecture.course.external_key,
@@ -298,8 +341,8 @@ def _sync_payload(material: Material) -> dict:
         "lecture_title": material.lecture.title,
         "title": material.title,
         "material_type": material.material_type,
-        "content": material.content,
-        "student_visible": material.student_visible,
+        "audience": audience,
+        "content": content or material.content,
     }
 
 
@@ -346,10 +389,10 @@ def sync_all_materials(
     return MaterialSyncAllResponse(synced=synced, failed=failed, chunks=chunks)
 
 
-@router.patch("/{material_id}/visibility", response_model=MaterialResponse)
-def update_material_visibility(
+@router.post("/{material_id}/audience", response_model=MaterialResponse)
+def update_material_audience(
     material_id: int,
-    req: MaterialVisibilityRequest,
+    req: MaterialAudienceRequest,
     teacher: Teacher = Depends(get_current_teacher),
     db: DBSession = Depends(get_db),
 ):
@@ -362,18 +405,18 @@ def update_material_visibility(
     if material is None:
         raise HTTPException(status_code=404, detail="Material not found")
 
-    previous_visibility = material.student_visible
-    material.student_visible = req.student_visible
+    previous_audience = material.audience
+    material.audience = req.audience
+    material.ingestion_status = "local_only"
     if student_data.integration_enabled():
-        try:
-            result = student_data.sync_material(_sync_payload(material))
-        except student_data.StudentDataUnavailable as exc:
-            material.student_visible = previous_visibility
-            material.sync_error = "Student visibility update failed: " + str(exc)[:440]
+        result = _sync_material_record(material, db)
+        if result is None:
+            sync_error = material.sync_error or "Student visibility update failed"
+            material.audience = previous_audience
+            material.ingestion_status = "sync_failed"
+            material.sync_error = sync_error
             db.commit()
-            raise HTTPException(status_code=503, detail=material.sync_error) from exc
-        material.ingestion_status = result["ingestion_status"]
-        material.sync_error = None
+            raise HTTPException(status_code=503, detail=sync_error)
     db.commit()
     db.refresh(material)
     return _material_response(material)
