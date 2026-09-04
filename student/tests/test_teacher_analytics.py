@@ -269,6 +269,7 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
             lecture_title="Introduction",
             title="Grounding notes",
             material_type="note",
+            audience="student",
             content="Ground every important claim in retrieved course evidence. " * 20,
         )
         with patch("services.course_rag.BEDROCK_BEARER_TOKEN", ""):
@@ -286,6 +287,39 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
         )
         self.assertTrue(retrieved.chunks)
         self.assertEqual(retrieved.chunks[0].source, "Grounding notes")
+
+    def test_teacher_only_material_is_removed_from_student_and_rag(self):
+        public_request = MaterialSyncRequest(
+            external_material_id="mat-private",
+            external_course_id="course-1",
+            course_title="Course One",
+            lecture_external_id="lecture-1",
+            lecture_number=1,
+            lecture_title="Introduction",
+            title="Internal checklist",
+            material_type="note",
+            audience="student",
+            content="Internal grading instructions that should later be removed. " * 10,
+        )
+        with patch("services.course_rag.BEDROCK_BEARER_TOKEN", ""):
+            sync_material(public_request, self.db)
+        self.assertEqual(self.db.query(CourseMaterial).count(), 1)
+
+        private_request = public_request.model_copy(update={"audience": "teacher"})
+        result = sync_material(private_request, self.db)
+
+        self.assertEqual(result.ingestion_status, "teacher_only")
+        self.assertEqual(result.chunk_count, 0)
+        self.assertEqual(self.db.query(CourseMaterial).count(), 0)
+        retrieved = retrieve_rag_context(
+            RagRetrieveRequest(
+                external_course_id="course-1",
+                query="grading instructions",
+                top_k=3,
+            ),
+            self.db,
+        )
+        self.assertEqual(retrieved.chunks, [])
 
     def test_chat_history_and_course_list_are_enrollment_scoped(self):
         student = self.db.query(Student).filter(Student.student_code == "s1").one()

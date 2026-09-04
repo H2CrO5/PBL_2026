@@ -74,6 +74,7 @@ class Material(Base):
     lecture_id = Column(Integer, ForeignKey("lectures.id"), nullable=False)
     title = Column(Text, nullable=False)
     material_type = Column(Text, nullable=False)  # slide / book / note
+    audience = Column(Text, nullable=False, default="teacher")  # student / teacher
     source_path = Column(Text, nullable=True)
     content = Column(Text, nullable=False)
     ingestion_status = Column(Text, default="ready")

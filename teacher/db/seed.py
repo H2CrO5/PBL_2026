@@ -275,6 +275,7 @@ def seed():
                     lecture_id=lecture.id,
                     title=material_data["title"],
                     material_type=material_data["type"],
+                    audience="student",
                     source_path=str(source_path.relative_to(BASE_DIR)),
                     content=content,
                     ingestion_status="local_only",

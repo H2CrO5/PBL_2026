@@ -14,6 +14,7 @@ class MaterialResponse(BaseModel):
     lecture_title: str
     title: str
     material_type: str
+    audience: Literal["student", "teacher"]
     ingestion_status: str
     content_preview: str
     created_at: datetime
@@ -31,11 +32,16 @@ class MaterialSyncAllResponse(BaseModel):
     chunks: int
 
 
+class MaterialAudienceRequest(BaseModel):
+    audience: Literal["student", "teacher"]
+
+
 class MaterialCreateRequest(BaseModel):
     course_id: int
     lecture_id: int
     title: str = Field(min_length=1)
     material_type: Literal["slide", "book", "note"]
+    audience: Literal["student", "teacher"] = "teacher"
     content: str = Field(min_length=1)
 
 
@@ -43,6 +49,7 @@ class CourseMaterialCreateRequest(BaseModel):
     lecture_id: int
     title: str = Field(min_length=1)
     material_type: Literal["slide", "book", "note"]
+    audience: Literal["student", "teacher"] = "teacher"
     content: str = Field(min_length=1)
 
 

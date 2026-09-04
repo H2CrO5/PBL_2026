@@ -163,6 +163,7 @@ class CourseMaterial(Base):
     lecture_id = Column(Integer, ForeignKey("lectures.id"), nullable=True)
     title = Column(Text, nullable=False)
     material_type = Column(Text, nullable=False)
+    audience = Column(Text, nullable=False, default="teacher")  # student / teacher
     content = Column(Text, nullable=False)
     ingestion_status = Column(Text, nullable=False, default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)

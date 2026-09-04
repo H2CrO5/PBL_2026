@@ -253,6 +253,25 @@ def publish_assignment(req: AssignmentPublishRequest, db: DBSession = Depends(ge
     dependencies=[Depends(require_teacher_integration)],
 )
 def sync_material(req: MaterialSyncRequest, db: DBSession = Depends(get_db)):
+    if req.audience == "teacher":
+        existing = db.query(CourseMaterial).filter(
+            CourseMaterial.external_key == req.external_material_id
+        ).first()
+        removed_id = existing.id if existing else None
+        if existing is not None:
+            db.delete(existing)
+        _audit(db, "material.unsync", "material", req.external_material_id, {
+            "reason": "teacher_only",
+            "removed": existing is not None,
+        })
+        db.commit()
+        return MaterialSyncResponse(
+            material_id=removed_id,
+            external_material_id=req.external_material_id,
+            ingestion_status="teacher_only",
+            chunk_count=0,
+        )
+
     course = _upsert_course(db, req.external_course_id, req.course_title, req.term)
     lecture = _upsert_lecture(
         db, course, req.lecture_external_id, req.lecture_number, req.lecture_title
@@ -267,6 +286,7 @@ def sync_material(req: MaterialSyncRequest, db: DBSession = Depends(get_db)):
             lecture_id=lecture.id,
             title=req.title,
             material_type=req.material_type,
+            audience="student",
             content=req.content,
         )
         db.add(material)
@@ -276,6 +296,7 @@ def sync_material(req: MaterialSyncRequest, db: DBSession = Depends(get_db)):
         material.lecture_id = lecture.id
         material.title = req.title
         material.material_type = req.material_type
+        material.audience = "student"
         material.content = req.content
     ingestion_status = ingest_material(db, material)
     _audit(db, "material.sync", "material", req.external_material_id, {
