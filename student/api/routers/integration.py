@@ -34,8 +34,7 @@ from db.models import (
     Submission,
 )
 from services.course_rag import ingest_material, retrieve_course
-from services.progress import latest_attempts
-from llm.memory import build_student_memory
+from services.progress import apply_progress, calculate_progress, latest_attempts
 from services.teacher_analytics import build_teacher_feed
 
 router = APIRouter(prefix="/integrations/teacher", tags=["integration"])
@@ -268,6 +267,7 @@ def sync_material(req: MaterialSyncRequest, db: DBSession = Depends(get_db)):
             title=req.title,
             material_type=req.material_type,
             content=req.content,
+            student_visible=req.student_visible,
         )
         db.add(material)
         db.flush()
@@ -277,6 +277,7 @@ def sync_material(req: MaterialSyncRequest, db: DBSession = Depends(get_db)):
         material.title = req.title
         material.material_type = req.material_type
         material.content = req.content
+        material.student_visible = req.student_visible
     ingestion_status = ingest_material(db, material)
     _audit(db, "material.sync", "material", req.external_material_id, {
         "ingestion_status": ingestion_status,
@@ -340,15 +341,7 @@ def override_grade(
     submission.reviewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.flush()
     student = submission.student
-    latest = latest_attempts(
-        db.query(Submission).filter(Submission.student_id == student.id).all()
-    )
-    student.overall_score = round(sum(item.score for item in latest) / len(latest), 1)
-    student.total_answered = len(latest)
-    student.total_correct = sum(1 for item in latest if item.is_correct)
-    memory = build_student_memory(db, student)
-    student.weak_topics = json.dumps(memory["weak_topics"], ensure_ascii=False)
-    student.strong_topics = json.dumps(memory["strong_topics"], ensure_ascii=False)
+    apply_progress(student, calculate_progress(db, student))
     _audit(db, "grade.override", "submission", str(submission.id), {"score": req.score})
     db.commit()
     return GradeOverrideResponse(

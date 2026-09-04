@@ -245,7 +245,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--target",
         default="grading",
-        choices=["grading", "teacher-feed", "generation", "ta-bot", "analytics"],
+        choices=["grading", "teacher-feed", "generation", "ta-bot", "analytics", "workflow"],
     )
     parser.add_argument("--live", action="store_true", help="use real Bedrock (needs AWS creds)")
     parser.add_argument("--repeats", type=int, default=3, help="grading repeats per answer")
@@ -261,7 +261,37 @@ def main(argv=None) -> int:
         help="path to a cases JSON (defaults to the dataset for the chosen target)",
     )
     parser.add_argument("--out", default=str(REPORTS_DIR), help="report output directory")
+    parser.add_argument("--teacher-url", default="http://127.0.0.1:8100")
+    parser.add_argument("--student-url", default="http://127.0.0.1:8000")
     args = parser.parse_args(argv)
+
+    if args.target == "workflow":
+        # Keep the deterministic CI gates standard-library-only. The live
+        # workflow's HTTP dependency is loaded only when that target is used.
+        from .workflows.full_pipeline import run_full_pipeline
+
+        metrics, groups = run_full_pipeline(args.teacher_url, args.student_url)
+        provider = type("ServiceProvider", (), {"name": "live-services"})()
+        gate_passed, gate_results = evaluate_gate(args.target, metrics)
+        _print_gate_summary(
+            args.target, provider, metrics, groups, gate_passed, gate_results
+        )
+        out_dir = Path(args.out)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        report_path = out_dir / f"workflow_{stamp}.json"
+        with open(report_path, "w", encoding="utf-8") as handle:
+            json.dump({
+                "target": "workflow",
+                "provider": provider.name,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "metrics": metrics,
+                "gate_passed": gate_passed,
+                "gates": gate_results,
+                "groups": groups,
+            }, handle, ensure_ascii=False, indent=2)
+        print(f"Report: {report_path}")
+        return 0 if gate_passed else 1
 
     provider = load_bedrock_provider() if args.live else MockProvider(jitter=args.jitter)
     cases_path = Path(args.cases) if args.cases else DEFAULT_DATASET[args.target]

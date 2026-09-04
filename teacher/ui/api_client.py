@@ -53,6 +53,28 @@ def post(path: str, json_data: dict | None = None, timeout: float = 20.0) -> Any
     return None
 
 
+def patch(path: str, json_data: dict, timeout: float = 20.0) -> Any | None:
+    try:
+        resp = httpx.patch(
+            f"{API_BASE_URL}{path}",
+            json=json_data,
+            headers=auth_headers(),
+            timeout=timeout,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        if resp.status_code == 401:
+            st.warning(t("session_expired"))
+            st.session_state.clear()
+            st.rerun()
+        st.error(resp.json().get("detail", t("api_error", status=resp.status_code)))
+    except httpx.ConnectError:
+        st.error(t("connection_error"))
+    except httpx.ReadTimeout:
+        st.error(t("timeout"))
+    return None
+
+
 def post_file(
     path: str,
     filename: str,

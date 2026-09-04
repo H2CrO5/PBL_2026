@@ -10,8 +10,16 @@ Enabled only when config.USE_LLM is true (env var TEACHER_USE_LLM).
 """
 
 import json
+from threading import Lock
+import time
 
 from llm import bedrock_client, prompts
+
+
+TEACHER_ACTION_CACHE_SECONDS = 300
+TEACHER_ACTION_CACHE_MAX_ENTRIES = 128
+_teacher_action_cache: dict[str, tuple[float, list[dict]]] = {}
+_teacher_action_cache_lock = Lock()
 
 
 def _as_str(value) -> str:
@@ -101,30 +109,54 @@ def narrate_teacher_actions(action_facts: list[dict]) -> list[dict]:
     if not action_facts:
         return []
 
-    prompt = prompts.TEACHER_ACTIONS_PROMPT.format(
-        action_facts=json.dumps(action_facts, ensure_ascii=False, indent=2)
-    )
-    result = bedrock_client.invoke_json(prompt, system=prompts.TEACHER_ACTIONS_SYSTEM)
+    # Dashboard refreshes are frequent and the facts are deterministic. Use a
+    # small single-flight cache so concurrent viewers do not make identical,
+    # paid Bedrock calls. A changed score/completion fact produces a new key.
+    cache_key = json.dumps(action_facts, ensure_ascii=False, sort_keys=True)
+    with _teacher_action_cache_lock:
+        now = time.monotonic()
+        for key, (expires_at, _) in list(_teacher_action_cache.items()):
+            if expires_at <= now:
+                _teacher_action_cache.pop(key, None)
 
-    items = result.get("items") if isinstance(result, dict) else None
-    if not isinstance(items, list) or len(items) != len(action_facts):
-        raise ValueError("teacher actions narration count mismatch")
+        cached = _teacher_action_cache.get(cache_key)
+        if cached and cached[0] > now:
+            return [dict(item) for item in cached[1]]
 
-    out: list[dict] = []
-    for fact, item in zip(action_facts, items):
-        if not isinstance(item, dict):
-            raise ValueError("teacher action item is not an object")
-        reason = _as_str(item.get("reason"))
-        next_step = _as_str(item.get("next_step"))
-        if not reason or not next_step:
-            raise ValueError("teacher action item missing reason/next_step")
-        # Keep priority/title authoritative from the deterministic facts.
-        out.append(
-            {
-                "priority": fact["priority"],
-                "title": fact["title"],
-                "reason": reason,
-                "next_step": next_step,
-            }
+        prompt = prompts.TEACHER_ACTIONS_PROMPT.format(
+            action_facts=json.dumps(action_facts, ensure_ascii=False, indent=2)
         )
-    return out
+        result = bedrock_client.invoke_json(prompt, system=prompts.TEACHER_ACTIONS_SYSTEM)
+
+        items = result.get("items") if isinstance(result, dict) else None
+        if not isinstance(items, list) or len(items) != len(action_facts):
+            raise ValueError("teacher actions narration count mismatch")
+
+        out: list[dict] = []
+        for fact, item in zip(action_facts, items):
+            if not isinstance(item, dict):
+                raise ValueError("teacher action item is not an object")
+            reason = _as_str(item.get("reason"))
+            next_step = _as_str(item.get("next_step"))
+            if not reason or not next_step:
+                raise ValueError("teacher action item missing reason/next_step")
+            # Keep priority/title authoritative from the deterministic facts.
+            out.append(
+                {
+                    "priority": fact["priority"],
+                    "title": fact["title"],
+                    "reason": reason,
+                    "next_step": next_step,
+                }
+            )
+        if len(_teacher_action_cache) >= TEACHER_ACTION_CACHE_MAX_ENTRIES:
+            oldest_key = min(
+                _teacher_action_cache,
+                key=lambda key: _teacher_action_cache[key][0],
+            )
+            _teacher_action_cache.pop(oldest_key, None)
+        _teacher_action_cache[cache_key] = (
+            now + TEACHER_ACTION_CACHE_SECONDS,
+            [dict(item) for item in out],
+        )
+        return out

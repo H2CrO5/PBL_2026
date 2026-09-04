@@ -15,6 +15,7 @@ from api.schemas.materials import (
     MaterialResponse,
     MaterialSyncAllResponse,
     MaterialSyncResponse,
+    MaterialVisibilityRequest,
 )
 from db.database import get_db
 from db.models import Course, Lecture, Material, Teacher
@@ -45,6 +46,8 @@ def _material_response(material: Material) -> MaterialResponse:
         title=material.title,
         material_type=material.material_type,
         ingestion_status=material.ingestion_status,
+        student_visible=material.student_visible,
+        sync_error=material.sync_error,
         content_preview=material.content[:220],
         created_at=material.created_at,
     )
@@ -145,29 +148,46 @@ def create_material(
         material_type=req.material_type,
         content=req.content,
         ingestion_status="local_only",
+        student_visible=req.student_visible,
     )
     db.add(material)
     db.flush()
     material.external_key = f"{course.external_key}:material-{material.id}"
-    if student_data.integration_enabled():
-        try:
-            result = student_data.sync_material(_sync_payload(material))
-            material.ingestion_status = result["ingestion_status"]
-        except student_data.StudentDataUnavailable:
-            material.ingestion_status = "sync_failed"
     db.commit()
     db.refresh(material)
+    if student_data.integration_enabled():
+        _sync_material_record(material, db)
     return _material_response(material)
+
+
+def _decode_text(content: bytes) -> str:
+    if content.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return content.decode("utf-16")
+    try:
+        return content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            return content.decode("cp932")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="Text files must use UTF-8, UTF-16, or Japanese CP932 encoding",
+            ) from exc
 
 
 def _extract_upload(filename: str, content: bytes) -> tuple[str, str]:
     suffix = Path(filename).suffix.lower()
     if suffix in {".txt", ".md"}:
-        return content.decode("utf-8"), "note"
+        return _decode_text(content), "note"
     if suffix == ".pdf":
         from pypdf import PdfReader
 
         reader = PdfReader(BytesIO(content))
+        if reader.is_encrypted and reader.decrypt("") == 0:
+            raise HTTPException(
+                status_code=422,
+                detail="Password-protected PDF files are not supported",
+            )
         pages = [
             f"[Page {index}]\n{page.extract_text() or ''}"
             for index, page in enumerate(reader.pages, start=1)
@@ -193,6 +213,7 @@ async def upload_material(
     course_id: int = Form(...),
     lecture_id: int = Form(...),
     title: str = Form(""),
+    student_visible: bool = Form(False),
     file: UploadFile = File(...),
     teacher: Teacher = Depends(get_current_teacher),
     db: DBSession = Depends(get_db),
@@ -208,6 +229,8 @@ async def upload_material(
     if course is None or lecture is None:
         raise HTTPException(status_code=404, detail="Course or lecture not found")
     raw = await file.read(MAX_MATERIAL_UPLOAD_BYTES + 1)
+    if not raw:
+        raise HTTPException(status_code=422, detail="Material file is empty")
     if len(raw) > MAX_MATERIAL_UPLOAD_BYTES:
         limit_mb = MAX_MATERIAL_UPLOAD_BYTES // (1024 * 1024)
         raise HTTPException(
@@ -221,31 +244,44 @@ async def upload_material(
     except Exception as exc:
         raise HTTPException(status_code=422, detail="Material file could not be parsed") from exc
     if not extracted.strip():
-        raise HTTPException(status_code=422, detail="No text could be extracted from this file")
+        suffix = Path(file.filename or "").suffix.lower()
+        if suffix == ".pdf":
+            detail = "No readable text was found. Scanned or image-only PDFs require OCR and are not supported."
+        elif suffix == ".pptx":
+            detail = "No readable text was found in the PowerPoint slides."
+        else:
+            detail = "No readable text could be extracted from this file."
+        raise HTTPException(status_code=422, detail=detail)
+    try:
+        source_path = material_storage.store_original(
+            file.filename or "material",
+            raw,
+            course.external_key or f"course-{course.id}",
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Original file storage failed; no material was created",
+        ) from exc
     material = Material(
         course_id=course.id,
         lecture_id=lecture.id,
         title=title.strip() or Path(file.filename or "Material").stem,
         material_type=material_type,
-        source_path=material_storage.store_original(
-            file.filename or "material",
-            raw,
-            course.external_key or f"course-{course.id}",
-        ),
+        source_path=source_path,
         content=extracted,
         ingestion_status="local_only",
+        student_visible=student_visible,
     )
     db.add(material)
     db.flush()
     material.external_key = f"{course.external_key}:material-{material.id}"
-    if student_data.integration_enabled():
-        try:
-            result = student_data.sync_material(_sync_payload(material))
-            material.ingestion_status = result["ingestion_status"]
-        except student_data.StudentDataUnavailable:
-            material.ingestion_status = "sync_failed"
+    # Preserve the extracted material before the slower cross-service indexing
+    # call. A Student/Bedrock outage must not lose an otherwise valid upload.
     db.commit()
     db.refresh(material)
+    if student_data.integration_enabled():
+        _sync_material_record(material, db)
     return _material_response(material)
 
 
@@ -263,7 +299,27 @@ def _sync_payload(material: Material) -> dict:
         "title": material.title,
         "material_type": material.material_type,
         "content": material.content,
+        "student_visible": material.student_visible,
     }
+
+
+def _sync_material_record(material: Material, db: DBSession) -> dict | None:
+    """Synchronize one persisted material while retaining actionable state."""
+    material.ingestion_status = "indexing"
+    material.sync_error = None
+    db.commit()
+    try:
+        result = student_data.sync_material(_sync_payload(material))
+    except student_data.StudentDataUnavailable as exc:
+        material.ingestion_status = "sync_failed"
+        material.sync_error = str(exc)[:500]
+        db.commit()
+        return None
+    material.ingestion_status = result["ingestion_status"]
+    material.sync_error = None
+    db.commit()
+    db.refresh(material)
+    return result
 
 
 @router.post("/sync-all", response_model=MaterialSyncAllResponse)
@@ -281,16 +337,46 @@ def sync_all_materials(
     )
     synced = failed = chunks = 0
     for material in materials:
-        try:
-            result = student_data.sync_material(_sync_payload(material))
-            material.ingestion_status = result["ingestion_status"]
+        result = _sync_material_record(material, db)
+        if result:
             chunks += result["chunk_count"]
             synced += 1
-        except student_data.StudentDataUnavailable:
-            material.ingestion_status = "sync_failed"
+        else:
             failed += 1
-    db.commit()
     return MaterialSyncAllResponse(synced=synced, failed=failed, chunks=chunks)
+
+
+@router.patch("/{material_id}/visibility", response_model=MaterialResponse)
+def update_material_visibility(
+    material_id: int,
+    req: MaterialVisibilityRequest,
+    teacher: Teacher = Depends(get_current_teacher),
+    db: DBSession = Depends(get_db),
+):
+    material = (
+        db.query(Material)
+        .join(Course, Material.course_id == Course.id)
+        .filter(Material.id == material_id, Course.teacher_id == teacher.id)
+        .first()
+    )
+    if material is None:
+        raise HTTPException(status_code=404, detail="Material not found")
+
+    previous_visibility = material.student_visible
+    material.student_visible = req.student_visible
+    if student_data.integration_enabled():
+        try:
+            result = student_data.sync_material(_sync_payload(material))
+        except student_data.StudentDataUnavailable as exc:
+            material.student_visible = previous_visibility
+            material.sync_error = "Student visibility update failed: " + str(exc)[:440]
+            db.commit()
+            raise HTTPException(status_code=503, detail=material.sync_error) from exc
+        material.ingestion_status = result["ingestion_status"]
+        material.sync_error = None
+    db.commit()
+    db.refresh(material)
+    return _material_response(material)
 
 
 @router.post("/{material_id}/sync", response_model=MaterialSyncResponse)
@@ -309,14 +395,9 @@ def sync_material(
         raise HTTPException(status_code=404, detail="Material not found")
     if not student_data.integration_enabled():
         raise HTTPException(status_code=503, detail="Student integration is not configured")
-    try:
-        result = student_data.sync_material(_sync_payload(material))
-    except student_data.StudentDataUnavailable as exc:
-        material.ingestion_status = "sync_failed"
-        db.commit()
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    material.ingestion_status = result["ingestion_status"]
-    db.commit()
+    result = _sync_material_record(material, db)
+    if result is None:
+        raise HTTPException(status_code=503, detail=material.sync_error or "Material sync failed")
     return MaterialSyncResponse(
         id=material.id,
         ingestion_status=material.ingestion_status,

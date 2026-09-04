@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session as DBSession
 
 from api.dependencies import get_current_student
@@ -54,11 +54,16 @@ def login(req: LoginRequest, db: DBSession = Depends(get_db)):
 
 @router.post("/logout", response_model=MessageResponse)
 def logout(
+    authorization: str = Header(...),
     student: Student = Depends(get_current_student),
     db: DBSession = Depends(get_db),
 ):
-    """Delete all sessions for the current student."""
-    db.query(Session).filter(Session.student_id == student.id).delete()
+    """Delete only the caller's session so other devices remain signed in."""
+    token = authorization.removeprefix("Bearer ")
+    db.query(Session).filter(
+        Session.student_id == student.id,
+        Session.token == token,
+    ).delete()
     db.commit()
     return MessageResponse(message="Logged out successfully")
 

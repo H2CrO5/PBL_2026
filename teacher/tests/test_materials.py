@@ -1,16 +1,28 @@
 """Tests for Teacher material and lecture management."""
 
+import asyncio
+from io import BytesIO
 import json
 import unittest
+from unittest.mock import patch
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
+from pypdf import PdfWriter
+from pptx import Presentation
+from pptx.util import Inches
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from api.routers.materials import create_lecture
-from api.schemas.materials import LectureCreateRequest
-from db.models import Base, Course, Teacher
+from api.routers.materials import (
+    _extract_upload,
+    create_lecture,
+    create_material,
+    upload_material,
+)
+from api.schemas.materials import LectureCreateRequest, MaterialCreateRequest
+from db.models import Base, Course, Lecture, Material, Teacher
+from services.student_data import StudentDataUnavailable
 
 
 class LectureManagementTest(unittest.TestCase):
@@ -101,6 +113,106 @@ class LectureManagementTest(unittest.TestCase):
             )
 
         self.assertEqual(raised.exception.status_code, 422)
+
+    def test_japanese_cp932_text_upload_is_decoded(self):
+        text, material_type = _extract_upload(
+            "lecture.txt",
+            "日本語の講義資料".encode("cp932"),
+        )
+        self.assertEqual(text, "日本語の講義資料")
+        self.assertEqual(material_type, "note")
+
+    def test_powerpoint_text_is_extracted_with_slide_markers(self):
+        presentation = Presentation()
+        slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+        box = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(5), Inches(1))
+        box.text = "Ground every claim in evidence"
+        raw = BytesIO()
+        presentation.save(raw)
+
+        text, material_type = _extract_upload("lecture.pptx", raw.getvalue())
+
+        self.assertEqual(material_type, "slide")
+        self.assertIn("[Slide 1]", text)
+        self.assertIn("Ground every claim in evidence", text)
+
+    def test_password_protected_pdf_has_actionable_error(self):
+        writer = PdfWriter()
+        writer.add_blank_page(width=100, height=100)
+        writer.encrypt("secret")
+        raw = BytesIO()
+        writer.write(raw)
+
+        with self.assertRaises(HTTPException) as raised:
+            _extract_upload("protected.pdf", raw.getvalue())
+
+        self.assertEqual(raised.exception.status_code, 422)
+        self.assertIn("Password-protected", raised.exception.detail)
+
+    def test_markdown_upload_is_persisted_before_optional_indexing(self):
+        create_lecture(self._request(), self.teacher, self.session)
+        lecture = self.session.query(Lecture).one()
+        upload = UploadFile(
+            filename="grounding.md",
+            file=BytesIO(b"# Grounding\nUse course evidence."),
+        )
+
+        with (
+            patch(
+                "api.routers.materials.material_storage.store_original",
+                return_value="stored/grounding.md",
+            ),
+            patch(
+                "api.routers.materials.student_data.integration_enabled",
+                return_value=False,
+            ),
+        ):
+            response = asyncio.run(upload_material(
+                course_id=self.course.id,
+                lecture_id=lecture.id,
+                title="",
+                student_visible=True,
+                file=upload,
+                teacher=self.teacher,
+                db=self.session,
+            ))
+
+        self.assertEqual(response.title, "grounding")
+        self.assertEqual(response.ingestion_status, "local_only")
+        self.assertTrue(response.student_visible)
+        stored = self.session.query(Material).one()
+        self.assertIn("Use course evidence", stored.content)
+        self.assertEqual(stored.source_path, "stored/grounding.md")
+
+    @patch("api.routers.materials.student_data.integration_enabled", return_value=True)
+    @patch("api.routers.materials.student_data.sync_material")
+    def test_material_is_preserved_when_student_indexing_fails(
+        self,
+        sync_material,
+        _integration_enabled,
+    ):
+        sync_material.side_effect = StudentDataUnavailable("temporary outage")
+        create_lecture(self._request(), self.teacher, self.session)
+        lecture = self.session.query(Lecture).one()
+
+        response = create_material(
+            MaterialCreateRequest(
+                course_id=self.course.id,
+                lecture_id=lecture.id,
+                title="Published notes",
+                material_type="note",
+                content="Ground claims in evidence.",
+                student_visible=True,
+            ),
+            self.teacher,
+            self.session,
+        )
+
+        self.assertEqual(response.ingestion_status, "sync_failed")
+        self.assertIn("temporary outage", response.sync_error)
+        stored = self.session.query(Material).one()
+        self.assertEqual(stored.content, "Ground claims in evidence.")
+        self.assertTrue(stored.student_visible)
 
 
 if __name__ == "__main__":

@@ -60,6 +60,7 @@ class MaterialSyncRequest(BaseModel):
     title: str
     material_type: str
     content: str = Field(min_length=1)
+    student_visible: bool = False
 
 
 class MaterialSyncResponse(BaseModel):

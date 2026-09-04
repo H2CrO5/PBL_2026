@@ -124,3 +124,83 @@ Both findings were addressed on 2026-09-04:
 - The empty state directs teachers to create a lecture first.
 
 Local verification confirmed that lecture creation returned HTTP `200`, the new lecture was selected immediately, and a Markdown upload still synchronized successfully to Student RAG with Bedrock status available. All Teacher unit tests and all four offline eval gates passed.
+
+## System-level follow-up
+
+The broader feedback exposed three related product gaps beyond the two original
+reproduction items. They were addressed locally on 2026-09-04.
+
+### Student progress was not internally consistent
+
+The demo history is stored as labeled `seed` submissions. The first real
+submission previously recalculated denormalized Student totals from `real` rows
+only, which could make a student's dashboard appear to reset instead of advance.
+Dashboard, memory, history, grade override and submission code now use one
+canonical latest-attempt rule over the demo baseline plus real submissions.
+The dashboard explains the rule and shows completed, pending, completion rate,
+accuracy and a cumulative timeline. A submission response includes the exact
+before/after progress delta.
+
+### Students could not read lecture materials
+
+Course materials already crossed the Teacher/Student service boundary for RAG,
+but there was no student-facing endpoint or page and no publication permission.
+Materials now have an explicit `student_visible` flag. Teachers can publish or
+hide each material, enrolled students can read published content grouped by
+lecture, and Student TA retrieval is restricted to the same published set.
+
+### Upload failures were difficult to diagnose
+
+Uploads now give specific errors for oversized files, unsupported encodings,
+password-protected PDFs, image-only/scanned PDFs, and empty presentations. The
+material is saved before remote indexing; an integration failure leaves a
+visible retryable record with the error instead of losing the teacher's work.
+
+## Verification after the follow-up
+
+- Student unit tests: 16 passed.
+- Teacher unit tests: 13 passed, including Markdown persistence, Japanese CP932
+  text, PowerPoint extraction and password-protected PDF handling.
+- Offline eval gates: grading, generation, TA grounding and analytics all passed.
+- Live-service workflow: 14/14 checks passed, including material
+  publish/hide/republish, Teacher Bedrock draft generation, assignment
+  publication, Bedrock grading, progress increment, progress delta and timeline
+  update.
+- Browser regression: Teacher lecture/material controls, Student progress and
+  Student material reading all rendered and operated correctly.
+- Concurrency regression: 300 complete Student flows at concurrency 50 produced
+  2,100 successful flow responses plus five session-isolation responses, no
+  failed flow, and correct same-user session isolation. Local p95 flow latency
+  was 11.6 seconds; this is a correctness test
+  on the SQLite development stack, not a production capacity claim.
+
+### Teacher-side concurrency and generation follow-up
+
+A separate Teacher stress harness now covers login/logout isolation, dashboard,
+lecture and material reads, question lists, student insights, published
+assignments, generation context, and optional real Bedrock draft generation.
+
+The first run exposed two issues that the earlier Student-oriented load test did
+not cover:
+
+1. Bedrock occasionally returned a syntactically invalid JSON draft when the
+   full local seed material was used. The generation prompt now defines each
+   field type explicitly, validates every required field, and performs one
+   deterministic correction retry. Six concurrent real Bedrock generation
+   requests subsequently completed successfully.
+2. Every dashboard refresh generated the same Teacher action narration through
+   Bedrock. Concurrent dashboard views therefore caused duplicate paid calls
+   and serialized the request queue. Identical deterministic analytics facts
+   now use a five-minute, bounded single-flight cache; changed facts produce a
+   different cache key.
+
+After these fixes, 150 complete Teacher flows at concurrency 30 plus six Bedrock
+generation requests at concurrency 3 produced 1,515 HTTP 200 responses with no
+failed flow and correct same-teacher session isolation. The read phase completed
+in 9.3 seconds at 16.19 flows/second with 9.23-second p95 flow latency. Before
+the dashboard cache, the same read phase took 34.7 seconds with 33.0-second p95
+latency. A moderate run of 60 flows at concurrency 15 also passed all 605 HTTP
+requests, completing in 2.43 seconds with 2.39-second p95 flow latency.
+
+These figures validate correctness and identify local regressions; they are not
+production capacity claims for the SQLite development server.

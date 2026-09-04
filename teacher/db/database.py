@@ -8,7 +8,11 @@ from db.models import Base
 
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+connect_args = (
+    {"check_same_thread": False, "timeout": 30}
+    if DATABASE_URL.startswith("sqlite")
+    else {}
+)
 engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
@@ -30,7 +34,11 @@ def create_tables():
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))
 
     add_columns("courses", {"external_key": "TEXT"})
-    add_columns("materials", {"external_key": "TEXT"})
+    add_columns("materials", {
+        "external_key": "TEXT",
+        "student_visible": "BOOLEAN NOT NULL DEFAULT 0",
+        "sync_error": "TEXT",
+    })
     add_columns("question_seeds", {
         "points": "FLOAT NOT NULL DEFAULT 100",
         "max_attempts": "INTEGER NOT NULL DEFAULT 1",
@@ -59,6 +67,12 @@ def create_tables():
         ))
         connection.execute(text(
             "UPDATE materials SET external_key = 'material-' || id WHERE external_key IS NULL"
+        ))
+        # Bundled seed materials are student-facing. Legacy teacher-authored
+        # notes and uploads remain private until the teacher publishes them.
+        connection.execute(text(
+            "UPDATE materials SET student_visible = 1 "
+            "WHERE external_key LIKE 'material-%-%'"
         ))
         # Keep existing local demo databases aligned with the current UI seed.
         connection.execute(text(

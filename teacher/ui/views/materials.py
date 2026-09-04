@@ -3,7 +3,7 @@
 import streamlit as st
 
 from config import MAX_MATERIAL_UPLOAD_BYTES
-from ui.api_client import get, post, post_file
+from ui.api_client import get, patch, post, post_file
 from ui.i18n import t, tv
 
 
@@ -34,6 +34,11 @@ def render():
                     value=t("default_material_content"),
                     height=160,
                 )
+                student_visible = st.checkbox(
+                    t("student_visible"),
+                    value=True,
+                    help=t("student_visible_help"),
+                )
                 submitted = st.form_submit_button(t("add_material"), width="stretch")
             if submitted:
                 if not summary:
@@ -45,6 +50,7 @@ def render():
                     "title": title,
                     "material_type": material_type,
                     "content": content,
+                    "student_visible": student_visible,
                 })
                 if result:
                     st.success(t("material_added"))
@@ -59,20 +65,28 @@ def render():
                 max_upload_size=upload_limit_mb,
             )
             upload_title = st.text_input(t("upload_title"))
+            upload_visible = st.checkbox(
+                t("student_visible"),
+                value=True,
+                help=t("student_visible_help"),
+                key="upload_student_visible",
+            )
             if st.button(t("upload_index"), disabled=upload is None, width="stretch"):
                 if not summary:
                     st.error(t("course_unknown"))
                 else:
-                    result = post_file(
-                        "/materials/upload",
-                        upload.name,
-                        upload.getvalue(),
-                        {
-                            "course_id": str(summary["course_id"]),
-                            "lecture_id": str(lecture_labels[selected]),
-                            "title": upload_title,
-                        },
-                    )
+                    with st.spinner(t("upload_processing")):
+                        result = post_file(
+                            "/materials/upload",
+                            upload.name,
+                            upload.getvalue(),
+                            {
+                                "course_id": str(summary["course_id"]),
+                                "lecture_id": str(lecture_labels[selected]),
+                                "title": upload_title,
+                                "student_visible": str(upload_visible).lower(),
+                            },
+                        )
                     if result:
                         st.success(t("uploaded", status=tv(result["ingestion_status"])))
                         st.rerun()
@@ -98,6 +112,32 @@ def render():
             col2.code(tv(material["material_type"]))
             col3.success(tv(material["ingestion_status"]))
             st.caption(material["content_preview"])
+            visibility_label = (
+                t("visible_to_students")
+                if material["student_visible"]
+                else t("private_to_teacher")
+            )
+            st.caption(visibility_label)
+            if material.get("sync_error"):
+                st.error(t("sync_error_detail", detail=material["sync_error"]))
+            visibility_button = (
+                t("hide_from_students")
+                if material["student_visible"]
+                else t("publish_to_students")
+            )
+            if st.button(
+                visibility_button,
+                key=f"material_visibility_{material['id']}",
+                width="stretch",
+            ):
+                result = patch(
+                    f"/materials/{material['id']}/visibility",
+                    {"student_visible": not material["student_visible"]},
+                    timeout=120.0,
+                )
+                if result:
+                    st.success(t("visibility_updated"))
+                    st.rerun()
             if st.button(
                 t("sync_rag"),
                 key=f"sync_material_{material['id']}",

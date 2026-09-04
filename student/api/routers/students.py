@@ -11,7 +11,7 @@ from api.schemas.assignments import AssignmentResponse, HistoryItem, HistoryResp
 from api.schemas.students import ConceptMastery, StudentCourseResponse, StudentMemoryResponse
 from db.database import get_db
 from db.models import Assignment, Course, Enrollment, Student, Submission
-from services.progress import latest_attempts
+from services.progress import STUDENT_PROGRESS_SOURCES, latest_attempts
 
 
 router = APIRouter(prefix="/students", tags=["students"])
@@ -51,7 +51,10 @@ def _memory(
     )
     if course:
         query = query.filter(Assignment.course_id == course.id)
-    submissions = latest_attempts(query.all())
+    submissions = latest_attempts(
+        query.all(),
+        allowed_sources=STUDENT_PROGRESS_SOURCES,
+    )
 
     by_concept: dict[str, list[Submission]] = defaultdict(list)
     for submission in submissions:
@@ -61,7 +64,9 @@ def _memory(
             concept=concept,
             mastery_score=round(sum(item.score for item in items) / len(items), 1),
             attempts=len(items),
-            evidence=[item.id for item in items],
+            # Evidence IDs are a stable API value even when multiple rows have
+            # the same database-generated timestamp.
+            evidence=sorted(item.id for item in items),
         )
         for concept, items in sorted(by_concept.items())
     ]
@@ -139,7 +144,8 @@ def student_history(
     if course:
         query = query.filter(Assignment.course_id == course.id)
     submissions = latest_attempts(
-        query.order_by(Submission.submitted_at.desc()).limit(limit).all()
+        query.order_by(Submission.submitted_at.desc()).limit(limit).all(),
+        allowed_sources=STUDENT_PROGRESS_SOURCES,
     )
     return HistoryResponse(
         items=[
@@ -172,7 +178,8 @@ def current_assignments(
     consumed = {
         item.assignment_id
         for item in latest_attempts(
-            db.query(Submission).filter(Submission.student_id == student.id).all()
+            db.query(Submission).filter(Submission.student_id == student.id).all(),
+            allowed_sources=STUDENT_PROGRESS_SOURCES,
         )
     }
     assignments = (

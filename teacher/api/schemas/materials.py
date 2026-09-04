@@ -15,6 +15,8 @@ class MaterialResponse(BaseModel):
     title: str
     material_type: str
     ingestion_status: str
+    student_visible: bool
+    sync_error: str | None = None
     content_preview: str
     created_at: datetime
 
@@ -37,6 +39,7 @@ class MaterialCreateRequest(BaseModel):
     title: str = Field(min_length=1)
     material_type: Literal["slide", "book", "note"]
     content: str = Field(min_length=1)
+    student_visible: bool = False
 
 
 class CourseMaterialCreateRequest(BaseModel):
@@ -44,6 +47,11 @@ class CourseMaterialCreateRequest(BaseModel):
     title: str = Field(min_length=1)
     material_type: Literal["slide", "book", "note"]
     content: str = Field(min_length=1)
+    student_visible: bool = False
+
+
+class MaterialVisibilityRequest(BaseModel):
+    student_visible: bool
 
 
 class LectureCreateRequest(BaseModel):

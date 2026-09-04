@@ -65,7 +65,10 @@ def send_message(
     db.add(user_msg)
     db.flush()
 
-    context_chunks = retrieve_course(db, course.id, effective_message) if course else []
+    context_chunks = (
+        retrieve_course(db, course.id, effective_message, visible_only=True)
+        if course else []
+    )
     if not context_chunks and course is None:
         # Preserve the original fixed-document demo until Teacher materials are
         # synced for legacy, course-less sessions. Never mix this global index

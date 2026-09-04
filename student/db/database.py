@@ -14,7 +14,11 @@ from db.models import Base
 
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+connect_args = (
+    {"check_same_thread": False, "timeout": 30}
+    if DATABASE_URL.startswith("sqlite")
+    else {}
+)
 engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
@@ -152,11 +156,20 @@ def create_tables():
         "course_id": "INTEGER",
         "assignment_id": "INTEGER",
     })
+    add_columns("course_materials", {
+        "student_visible": "BOOLEAN NOT NULL DEFAULT 0",
+    })
 
     # Preserve prototype records while moving them to the course identity used
     # by Teacher. This is idempotent and retains existing submissions.
     with engine.begin() as connection:
         _ensure_default_course(connection)
+        # Preserve visibility only for bundled demo materials synchronized
+        # before publication controls existed.
+        connection.execute(text(
+            "UPDATE course_materials SET student_visible = 1 "
+            "WHERE external_key LIKE 'material-%-%'"
+        ))
 
 
 def get_db():

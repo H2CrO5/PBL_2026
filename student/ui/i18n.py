@@ -8,6 +8,7 @@ TRANSLATIONS = {
     "navigation": {"ja": "ナビゲーション", "en": "Navigation"},
     "page_dashboard": {"ja": "ダッシュボード", "en": "Dashboard"},
     "page_assignments": {"ja": "課題", "en": "Assignments"},
+    "page_materials": {"ja": "教材", "en": "Materials"},
     "page_ta_bot": {"ja": "TA Bot", "en": "TA Bot"},
     "logout": {"ja": "ログアウト", "en": "Logout"},
     "language": {"ja": "言語", "en": "Language"},
@@ -86,6 +87,13 @@ TRANSLATIONS = {
     "ta_bot_ref": {"ja": "参照", "en": "Ref"},
     "course_label": {"ja": "コース", "en": "Course"},
     "no_active_courses": {"ja": "受講中のコースがありません。", "en": "No active courses are available."},
+    "materials_title": {"ja": "教材", "en": "Course Materials"},
+    "materials_caption": {"ja": "教員が公開した講義教材を確認できます。", "en": "Review lecture materials published by your teacher."},
+    "no_published_materials": {"ja": "公開されている教材はまだありません。", "en": "No materials have been published for students yet."},
+    "other_materials": {"ja": "その他の教材", "en": "Other Materials"},
+    "slide": {"ja": "スライド", "en": "Slides"},
+    "book": {"ja": "参考資料", "en": "Reference"},
+    "note": {"ja": "ノート", "en": "Note"},
 
     # ── Common errors ─────────────────────────────────────
     "session_expired": {"ja": "セッションが切れました。再ログインしてください。", "en": "Session expired. Please log in again."},
@@ -98,6 +106,9 @@ TRANSLATIONS = {
     "welcome_student": {"ja": "ようこそ、{name}さん", "en": "Welcome, {name}"},
     "dashboard_caption": {"ja": "現在の学習状況と最近の成績を確認できます。", "en": "Review your current progress and recent performance."},
     "overall_score": {"ja": "総合スコア", "en": "Overall Score"},
+    "completion": {"ja": "完了した課題", "en": "Completed"},
+    "completion_rate": {"ja": "課題完了率", "en": "Completion"},
+    "pending": {"ja": "未完了", "en": "Pending"},
     "accuracy": {"ja": "正答率", "en": "Accuracy"},
     "answered": {"ja": "回答済み", "en": "Answered"},
     "today_progress": {"ja": "今日の進捗", "en": "Today's Progress"},
@@ -115,6 +126,13 @@ TRANSLATIONS = {
     "concept_mastery": {"ja": "概念別習熟度", "en": "Concept Mastery"},
     "mastery_score": {"ja": "習熟スコア", "en": "Mastery Score"},
     "attempts": {"ja": "評価数", "en": "Evidence Count"},
+    "progress_rules": {"ja": "進捗は各課題の最新の採点済み回答から計算します。課題を初めて完了すると完了数が増え、再回答では最新スコアに更新されます。", "en": "Progress uses the latest graded answer for each assignment. First completion increases the completed count; a retry replaces that assignment's current score."},
+    "progress_over_time": {"ja": "課題完了による進捗の変化", "en": "Progress after each completed assignment"},
+    "percent_or_score": {"ja": "割合・スコア", "en": "Percent / Score"},
+    "assignment_score": {"ja": "今回のスコア", "en": "Assignment Score"},
+    "progress_change": {"ja": "今回の回答による変化", "en": "What changed after this answer"},
+    "progress_change_explanation": {"ja": "総合スコア、課題完了率、対象トピックの習熟度を再計算しました。", "en": "Overall score, assignment completion, and topic mastery were recalculated."},
+    "first_evidence": {"ja": "最初の評価", "en": "First evidence"},
 }
 
 

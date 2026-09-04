@@ -169,12 +169,12 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
         self.assertEqual(feed["students"][0]["total_submissions"], 1)
         migration_session.close()
 
-    def test_student_memory_uses_real_latest_attempts(self):
+    def test_student_memory_uses_demo_baseline_and_real_attempts(self):
         student = self.db.query(Student).filter(Student.student_code == "s1").one()
         memory = _memory(self.db, student, None)
-        self.assertEqual(memory.overall_score, 40.0)
-        self.assertEqual(memory.weak_topics, ["RAG citations"])
-        self.assertEqual(memory.concept_mastery[0].evidence, [2])
+        self.assertEqual(memory.overall_score, 70.0)
+        self.assertEqual(memory.weak_topics, [])
+        self.assertEqual(memory.concept_mastery[0].evidence, [1, 2])
 
     def test_integration_token_is_required(self):
         with patch("api.routers.integration.TEACHER_INTEGRATION_TOKEN", "expected"):
@@ -270,12 +270,14 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
             title="Grounding notes",
             material_type="note",
             content="Ground every important claim in retrieved course evidence. " * 20,
+            student_visible=True,
         )
         with patch("services.course_rag.BEDROCK_BEARER_TOKEN", ""):
             result = sync_material(request, self.db)
         self.assertEqual(result.ingestion_status, "ready_lexical")
         self.assertGreater(result.chunk_count, 0)
         self.assertEqual(self.db.query(CourseMaterial).count(), 1)
+        self.assertTrue(self.db.query(CourseMaterial).one().student_visible)
         retrieved = retrieve_rag_context(
             RagRetrieveRequest(
                 external_course_id="course-1",

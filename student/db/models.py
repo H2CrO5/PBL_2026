@@ -165,10 +165,12 @@ class CourseMaterial(Base):
     material_type = Column(Text, nullable=False)
     content = Column(Text, nullable=False)
     ingestion_status = Column(Text, nullable=False, default="pending")
+    student_visible = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     course = relationship("Course", back_populates="materials")
+    lecture = relationship("Lecture")
     chunks = relationship("MaterialChunk", back_populates="material", cascade="all, delete-orphan")
 
 

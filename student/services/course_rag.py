@@ -79,13 +79,16 @@ def retrieve_course(
     course_id: int,
     query: str,
     top_k: int = 3,
+    visible_only: bool = False,
 ) -> list[dict]:
-    chunks = (
+    chunks_query = (
         db.query(MaterialChunk)
         .join(CourseMaterial, MaterialChunk.material_id == CourseMaterial.id)
         .filter(CourseMaterial.course_id == course_id)
-        .all()
     )
+    if visible_only:
+        chunks_query = chunks_query.filter(CourseMaterial.student_visible.is_(True))
+    chunks = chunks_query.all()
     if not chunks:
         return []
 

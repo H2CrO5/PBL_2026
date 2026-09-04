@@ -47,7 +47,8 @@ Request. `.env` is ignored by Git.
 ## Teacher workflow
 
 1. Open **Assignment Builder** and select an existing lecture, or use **Add Lecture** to create one.
-2. Open **Materials**, upload a PDF/PPTX/MD/TXT file of up to 20 MB, or select **Sync all materials to Student RAG**.
+2. Open **Materials**, upload a PDF/PPTX/MD/TXT file of up to 20 MB, choose
+   whether students may view it, or select **Sync all materials to Student RAG**.
 3. Return to **Assignment Builder** and generate a grounded Bedrock draft, or add a seed.
 4. Review the question and select **Publish to Student app**.
 5. The student answers it in the Student application.
@@ -55,8 +56,11 @@ Request. `.env` is ignored by Git.
 6. Open **Students** to see the real answer, feedback, error pattern, and score.
 7. If needed, save a grade correction; analytics are recalculated immediately.
 
-The Student **Dashboard** shows live score trends, accuracy, weak/strong topics
-and concept mastery evidence. Teacher **Analytics** includes class trends and
+The Student **Dashboard** explains how progress is calculated, shows completed
+and pending assignment counts, and plots score/completion changes over time.
+After a submission it also shows the exact progress delta. The Student
+**Materials** page displays only the enrolled-course materials that a teacher
+has explicitly published. Teacher **Analytics** includes class trends and
 assignment-level completion, missing concepts and grading error patterns.
 The TA Bot requires an enrolled course selection and keeps history isolated by
 course; assignment questions are additionally tied to an owned assignment.

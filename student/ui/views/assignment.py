@@ -109,6 +109,10 @@ def _render_pending_by_lecture():
             score=batch_result["total_score"],
             max_score=batch_result["max_score"],
         ))
+        if batch_result["submissions"]:
+            _show_progress_change(
+                batch_result["submissions"][-1].get("progress_change")
+            )
 
     for group in data:
         lecture = group["lecture"]
@@ -240,6 +244,7 @@ def _render_feedback(assignment: dict, submission: dict):
 
     st.markdown(f"**{t('feedback_label')}**")
     st.markdown(submission["feedback"])
+    _show_progress_change(submission.get("progress_change"))
     if submission.get("missing_concepts"):
         st.markdown(f"**{t('missing_concepts_label')}**")
         for concept in submission["missing_concepts"]:
@@ -250,6 +255,30 @@ def _render_feedback(assignment: dict, submission: dict):
     with st.expander(t("show_answer")):
         st.markdown(f"**{t('correct_answer_label')}** {submission['correct_answer']}")
         st.markdown(f"**{t('explanation_label')}** {submission['explanation']}")
+
+
+def _show_progress_change(change: dict | None):
+    if not change:
+        return
+    st.subheader(t("progress_change"))
+    st.caption(t("progress_change_explanation"))
+    score_col, completion_col, topic_col = st.columns(3)
+    score_col.metric(
+        t("overall_score"),
+        f"{change['overall_score_after']:.1f}",
+        f"{change['overall_score_delta']:+.1f}",
+    )
+    completion_col.metric(
+        t("completion"),
+        f"{change['completed_after']}/{change['total_assignments']}",
+        f"{change['completion_rate_delta']:+.1f}%",
+    )
+    topic_delta = change.get("topic_mastery_delta")
+    topic_col.metric(
+        change["topic"],
+        f"{change['topic_mastery_after']:.1f}",
+        f"{topic_delta:+.1f}" if topic_delta is not None else t("first_evidence"),
+    )
 
 
 def _render_history():

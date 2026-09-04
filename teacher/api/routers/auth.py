@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session as DBSession
 
 from api.dependencies import get_current_teacher
@@ -42,10 +42,15 @@ def login(req: LoginRequest, db: DBSession = Depends(get_db)):
 
 @router.post("/logout", response_model=MessageResponse)
 def logout(
+    authorization: str = Header(...),
     teacher: Teacher = Depends(get_current_teacher),
     db: DBSession = Depends(get_db),
 ):
-    db.query(Session).filter(Session.teacher_id == teacher.id).delete()
+    token = authorization.removeprefix("Bearer ")
+    db.query(Session).filter(
+        Session.teacher_id == teacher.id,
+        Session.token == token,
+    ).delete()
     db.commit()
     return MessageResponse(message="Logged out successfully")
 
@@ -53,4 +58,3 @@ def logout(
 @router.get("/me", response_model=TeacherResponse)
 def get_me(teacher: Teacher = Depends(get_current_teacher)):
     return TeacherResponse(id=teacher.id, teacher_code=teacher.teacher_code, name=teacher.name)
-

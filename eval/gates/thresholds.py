@@ -27,6 +27,9 @@ GATES = {
     "analytics": {
         "analytics_faithfulness": (">=", 0.80),
     },
+    "workflow": {
+        "workflow_success": (">=", 1.0),
+    },
 }
 
 _OPS = {

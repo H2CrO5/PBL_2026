@@ -29,8 +29,8 @@ from api.schemas.assignments import (
 from db.database import get_db
 from db.models import Assignment, Lecture, Student, Submission
 from llm import bedrock_client, prompts
-from llm.memory import build_student_memory
 from services.course_rag import retrieve_course
+from services.progress import apply_progress, calculate_progress
 
 router = APIRouter(prefix="/assignments", tags=["assignments"])
 
@@ -269,6 +269,7 @@ def submit_answer(
             detail=f"Maximum attempts reached ({assignment.max_attempts})",
         )
 
+    progress_before = calculate_progress(db, student)
     attempt_number = db.query(Submission).filter(
         Submission.assignment_id == assignment.id,
         Submission.student_id == student.id,
@@ -351,20 +352,36 @@ def submit_answer(
     # included in the memory recalculation below.
     db.flush()
 
-    # Recalculate progress from the latest graded real attempt per assignment.
-    from services.progress import latest_attempts
-    latest = latest_attempts(
-        db.query(Submission).filter(Submission.student_id == student.id).all()
-    )
-    all_scores = [item.score for item in latest]
-    student.total_answered = len(latest)
-    student.total_correct = sum(1 for item in latest if item.is_correct)
-    student.overall_score = round(sum(all_scores) / len(all_scores), 1)
+    progress_after = calculate_progress(db, student)
+    apply_progress(student, progress_after)
 
-    # Update weak/strong topics
-    memory = build_student_memory(db, student)
-    student.weak_topics = json.dumps(memory["weak_topics"], ensure_ascii=False)
-    student.strong_topics = json.dumps(memory["strong_topics"], ensure_ascii=False)
+    topic_before = progress_before["topic_scores"].get(assignment.topic)
+    topic_after = progress_after["topic_scores"].get(assignment.topic, score)
+    progress_change = {
+        "overall_score_before": progress_before["overall_score"],
+        "overall_score_after": progress_after["overall_score"],
+        "overall_score_delta": round(
+            progress_after["overall_score"] - progress_before["overall_score"], 1
+        ),
+        "completed_before": progress_before["completed_assignments"],
+        "completed_after": progress_after["completed_assignments"],
+        "total_assignments": progress_after["total_assignments"],
+        "completion_rate_before": progress_before["completion_rate"],
+        "completion_rate_after": progress_after["completion_rate"],
+        "completion_rate_delta": round(
+            progress_after["completion_rate"] - progress_before["completion_rate"], 1
+        ),
+        "topic": assignment.topic,
+        "topic_mastery_before": topic_before,
+        "topic_mastery_after": topic_after,
+        "topic_mastery_delta": (
+            round(topic_after - topic_before, 1) if topic_before is not None else None
+        ),
+        "newly_completed": (
+            progress_after["completed_assignments"]
+            > progress_before["completed_assignments"]
+        ),
+    }
 
     db.commit()
     db.refresh(submission)
@@ -384,6 +401,7 @@ def submit_answer(
         attempts_remaining=max(0, assignment.max_attempts - submission.attempt_number),
         grading_source=submission.grading_source,
         missing_concepts=missing_concepts,
+        progress_change=progress_change,
         submitted_at=submission.submitted_at,
     )
 

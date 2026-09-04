@@ -59,6 +59,40 @@ python -m eval.run --target analytics                                   # uses d
 python -m eval.run --target analytics --live --cases eval/reports/teacher_feed.json  # judge the real synthetic feed
 ```
 
+Full black-box workflow — requires all four local services to be running. It
+creates a lecture, uploads and indexes a Markdown material, verifies publish/hide/republish
+visibility from the Student API, generates a Teacher draft through Bedrock,
+publishes and submits an assignment, invokes the configured grader, and checks
+the resulting progress delta and timeline:
+
+```bash
+python -m eval.run --target workflow
+```
+
+Concurrent Student smoke/load test — each flow logs in, reads auth, dashboard,
+timeline, materials and assignments, then logs out. The test also verifies that
+logging out one of two sessions for the same student does not invalidate the
+other session:
+
+```bash
+python eval/stress.py --requests 60 --concurrency 15
+python eval/stress.py --requests 300 --concurrency 50
+```
+
+Teacher-side sessions, analytics, materials and generation-context reads can be
+tested separately. The optional generation phase invokes real Bedrock and
+creates drafts in the target Teacher database, so use an isolated database:
+
+```bash
+python eval/stress_teacher.py --flows 60 --concurrency 15
+python eval/stress_teacher.py --flows 150 --concurrency 30 \
+  --generation-requests 6 --generation-concurrency 3
+```
+
+This is a local correctness and regression load test, not a production capacity
+benchmark. SQLite and password hashing intentionally limit throughput; use the
+PostgreSQL deployment configuration for production sizing.
+
 Run from the repository root so `python -m eval.run` resolves the package.
 
 ## Modes
@@ -80,6 +114,7 @@ Run from the repository root so `python -m eval.run` resolves the package.
 | ta-bot | `citation_grounding_rate` | judge: fraction of answer claims supported by the sources | `>= 0.85` |
 | ta-bot | `hallucination_rate` | judge: fraction of answer claims unsupported/contradicted | `<= 0.05` |
 | analytics | `analytics_faithfulness` | judge: narration's claims follow from the numeric facts (no invented figures) | `>= 0.80` |
+| workflow | `workflow_success` | all Teacher-to-Student material, assignment and progress checks pass | `>= 1.00` |
 
 Thresholds are starting values in `gates/thresholds.py`; calibrate from a
 baseline run, then ratchet up.
@@ -103,6 +138,9 @@ eval/
   judges/analytics.py   analytics-faithfulness judge
   gates/thresholds.py   metric thresholds + pass/fail
   datasets/*.json       fixtures: assignments / generation / TA / analytics facts
+  workflows/            live-service Teacher-to-Student black-box workflow
+  stress.py             concurrent Student session/read smoke and load test
+  stress_teacher.py     concurrent Teacher reads and optional Bedrock generation
   reports/              run reports (git-ignored)
 ```
 

@@ -75,6 +75,23 @@ class BatchSubmissionRequest(BaseModel):
     answers: list[BatchAnswer] = Field(min_length=1, max_length=20)
 
 
+class ProgressChange(BaseModel):
+    overall_score_before: float
+    overall_score_after: float
+    overall_score_delta: float
+    completed_before: int
+    completed_after: int
+    total_assignments: int
+    completion_rate_before: float
+    completion_rate_after: float
+    completion_rate_delta: float
+    topic: str
+    topic_mastery_before: float | None = None
+    topic_mastery_after: float
+    topic_mastery_delta: float | None = None
+    newly_completed: bool
+
+
 class SubmissionResponse(BaseModel):
     id: int
     assignment_id: int
@@ -90,6 +107,7 @@ class SubmissionResponse(BaseModel):
     attempts_remaining: int = 0
     grading_source: str = "auto"
     missing_concepts: list[str] = Field(default_factory=list)
+    progress_change: ProgressChange | None = None
     submitted_at: datetime
 
 

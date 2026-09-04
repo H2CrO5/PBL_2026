@@ -5,7 +5,12 @@ import pandas as pd
 import streamlit as st
 
 from config import API_BASE_URL
-from ui.components.charts import accuracy_gauge, score_trend_chart, topic_bar_chart
+from ui.components.charts import (
+    accuracy_gauge,
+    progress_timeline_chart,
+    score_trend_chart,
+    topic_bar_chart,
+)
 from ui.i18n import t
 
 
@@ -37,18 +42,31 @@ def render():
 
     summary = _api_get("/dashboard/summary")
     trends = _api_get("/dashboard/trends?days=30")
+    timeline = _api_get("/dashboard/timeline?days=30")
     memory = _api_get("/students/me/memory")
-    if summary is None or trends is None or memory is None:
+    if summary is None or trends is None or timeline is None or memory is None:
         return
 
-    score_col, accuracy_col, answered_col, today_col = st.columns(4)
+    st.info(t("progress_rules"))
+    score_col, completion_col, pending_col, accuracy_col, today_col = st.columns(5)
     score_col.metric(t("overall_score"), f"{summary['overall_score']:.1f}/100")
+    completion_col.metric(
+        t("completion"),
+        f"{summary['completed_assignments']}/{summary['total_assignments']}",
+        f"{summary['completion_rate']:.1f}%",
+    )
+    pending_col.metric(t("pending"), summary["pending_assignments"])
     accuracy_col.metric(t("accuracy"), f"{summary['accuracy']:.1f}%")
-    answered_col.metric(t("answered"), summary["total_answered"])
     today_col.metric(
         t("today_progress"),
         f"{summary['today_correct']}/{summary['today_answered']}",
     )
+
+    if timeline["points"]:
+        st.plotly_chart(
+            progress_timeline_chart(timeline["points"]),
+            width="stretch",
+        )
 
     left, right = st.columns([2, 1])
     with left:

@@ -9,7 +9,7 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import admin, assignments, auth, chat, dashboard, integration, students, submissions
+from api.routers import admin, assignments, auth, chat, dashboard, integration, materials, students, submissions
 from db.database import create_tables
 from config import CORS_ORIGINS
 
@@ -58,6 +58,7 @@ app.include_router(assignments.router)
 app.include_router(chat.router)
 app.include_router(admin.router)
 app.include_router(integration.router)
+app.include_router(materials.router)
 app.include_router(students.router)
 app.include_router(submissions.router)
 

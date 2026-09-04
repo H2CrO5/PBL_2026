@@ -7,6 +7,7 @@ from io import BytesIO
 
 from services.student_data import teacher_records
 from services.assignment_generation import generate_draft
+from services import analytics_llm
 from services.analytics_llm import narrate_evidence
 from api.routers.materials import _extract_upload
 
@@ -62,6 +63,30 @@ class StudentDataAdapterTest(unittest.TestCase):
         prompt = invoke_json.call_args.args[0]
         self.assertIn("Claims need evidence", prompt)
 
+    @patch("services.assignment_generation.bedrock_client.invoke_json")
+    def test_assignment_generation_retries_invalid_json_once(self, invoke_json):
+        invoke_json.side_effect = [
+            ValueError("invalid JSON"),
+            {
+                "title": "Retry checkpoint",
+                "question_text": "Explain the boundary.",
+                "expected_answer": "Handle equality explicitly.",
+                "rubric": ["Identifies equality", "Explains the result"],
+                "source_titles": ["Boundary notes"],
+            },
+        ]
+
+        result = generate_draft(
+            "Edge-case handling",
+            "easy",
+            ["Handle boundaries"],
+            [{"title": "Boundary notes", "content": "Equality is a boundary."}],
+        )
+
+        self.assertEqual(result["title"], "Retry checkpoint")
+        self.assertEqual(invoke_json.call_count, 2)
+        self.assertIn("previous response", invoke_json.call_args.args[0])
+
     def test_powerpoint_material_extraction_keeps_slide_locator(self):
         from pptx import Presentation
 
@@ -97,6 +122,28 @@ class StudentDataAdapterTest(unittest.TestCase):
         self.assertIn("Grounding", result)
         prompt = invoke_json.call_args.args[0]
         self.assertIn("Lecture slide 4", prompt)
+
+    @patch("services.analytics_llm.bedrock_client.invoke_json")
+    def test_teacher_action_narration_reuses_identical_facts(self, invoke_json):
+        invoke_json.return_value = {
+            "items": [{
+                "reason": "The completion rate is below target.",
+                "next_step": "Review missing submissions.",
+            }]
+        }
+        facts = [{
+            "priority": "medium",
+            "title": "Monitor completion",
+            "context": "Completion is 75%.",
+        }]
+        analytics_llm._teacher_action_cache.clear()
+
+        first = analytics_llm.narrate_teacher_actions(facts)
+        second = analytics_llm.narrate_teacher_actions(facts)
+
+        self.assertEqual(first, second)
+        self.assertIsNot(first, second)
+        self.assertEqual(invoke_json.call_count, 1)
 
 
 if __name__ == "__main__":

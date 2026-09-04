@@ -278,6 +278,7 @@ def seed():
                     source_path=str(source_path.relative_to(BASE_DIR)),
                     content=content,
                     ingestion_status="local_only",
+                    student_visible=True,
                 )
                 db.add(material)
 

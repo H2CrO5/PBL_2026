@@ -21,14 +21,24 @@ Student mastery context:
 Course material:
 {material_context}
 
-Return JSON:
+Return exactly one valid JSON object with these field types:
 {{
-  "title": "short title",
-  "question_text": "question",
-  "expected_answer": "grounded model answer",
-  "rubric": ["criterion 1", "criterion 2", "criterion 3"],
-  "source_titles": ["title used"]
+  "title": "string",
+  "question_text": "string",
+  "expected_answer": "one plain-text string, not an object or array",
+  "rubric": ["string", "string", "string"],
+  "source_titles": ["string"]
 }}
+
+Do not use Markdown fences. Keep multi-step answers inside one JSON string and
+avoid double quotation marks inside string values.
+"""
+
+JSON_RETRY = """
+
+Your previous response could not be parsed against the required JSON schema.
+Try once more. Return only syntactically valid JSON. In particular,
+expected_answer must be one string and every rubric item must be one string.
 """
 
 
@@ -46,21 +56,42 @@ def generate_draft(
         f"[Source: {item['title']}]\n{item['content'][:6000]}"
         for item in materials[:4]
     )
-    result = bedrock_client.invoke_json(
-        PROMPT.format(
-            target_concept=target_concept,
-            assignment_goal=assignment_goal,
-            difficulty=difficulty,
-            objectives=json.dumps(objectives, ensure_ascii=False),
-            student_context=json.dumps(student_context or [], ensure_ascii=False),
-            material_context=context,
-        ),
-        system=SYSTEM,
-        temperature=0.2,
+    prompt = PROMPT.format(
+        target_concept=target_concept,
+        assignment_goal=assignment_goal,
+        difficulty=difficulty,
+        objectives=json.dumps(objectives, ensure_ascii=False),
+        student_context=json.dumps(student_context or [], ensure_ascii=False),
+        material_context=context,
     )
-    required = ("title", "question_text", "expected_answer", "rubric")
-    if not isinstance(result, dict) or any(not result.get(key) for key in required):
-        raise ValueError("Bedrock returned an invalid assignment draft")
-    if not isinstance(result["rubric"], list):
-        raise ValueError("Bedrock assignment rubric must be a list")
-    return result
+    last_error: ValueError | None = None
+    for attempt in range(2):
+        try:
+            result = bedrock_client.invoke_json(
+                prompt + (JSON_RETRY if attempt else ""),
+                system=SYSTEM,
+                max_tokens=2048,
+                temperature=0.2 if attempt == 0 else 0.0,
+            )
+            if not isinstance(result, dict):
+                raise ValueError("Bedrock assignment draft must be an object")
+            for key in ("title", "question_text", "expected_answer"):
+                if not isinstance(result.get(key), str) or not result[key].strip():
+                    raise ValueError(f"Bedrock assignment {key} must be a string")
+            rubric = result.get("rubric")
+            if (
+                not isinstance(rubric, list)
+                or not rubric
+                or any(not isinstance(item, str) or not item.strip() for item in rubric)
+            ):
+                raise ValueError("Bedrock assignment rubric must be a list of strings")
+            sources = result.get("source_titles", [])
+            if not isinstance(sources, list) or any(
+                not isinstance(item, str) for item in sources
+            ):
+                raise ValueError("Bedrock assignment source_titles must be a list of strings")
+            result["source_titles"] = sources
+            return result
+        except ValueError as exc:
+            last_error = exc
+    raise ValueError("Bedrock returned invalid assignment JSON after one retry") from last_error

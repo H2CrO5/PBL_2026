@@ -92,3 +92,38 @@ def accuracy_gauge(accuracy: float) -> go.Figure:
     )
     fig.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
     return fig
+
+
+def progress_timeline_chart(points: list[dict]) -> go.Figure:
+    """Show cumulative score and completion changes after each submission."""
+    dates = [point["submitted_at"] for point in points]
+    hover = [
+        f"{point['topic']}<br>{t('assignment_score')}: {point['assignment_score']:.1f}"
+        for point in points
+    ]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=dates,
+        y=[point["overall_score"] for point in points],
+        mode="lines+markers",
+        name=t("overall_score"),
+        text=hover,
+        hovertemplate="%{x}<br>%{text}<br>" + t("overall_score") + ": %{y:.1f}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=dates,
+        y=[point["completion_rate"] for point in points],
+        mode="lines+markers",
+        name=t("completion_rate"),
+        text=hover,
+        hovertemplate="%{x}<br>%{text}<br>" + t("completion_rate") + ": %{y:.1f}%<extra></extra>",
+    ))
+    fig.update_layout(
+        title=t("progress_over_time"),
+        xaxis_title=t("date"),
+        yaxis_title=t("percent_or_score"),
+        yaxis=dict(range=[0, 105]),
+        height=350,
+        margin=dict(l=40, r=20, t=50, b=40),
+    )
+    return fig
