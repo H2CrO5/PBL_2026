@@ -1,0 +1,24 @@
+{
+  "target": "student-concurrent-login-and-reads",
+  "generated_at": "2026-09-04T08:57:07.748326+00:00",
+  "flows": 300,
+  "requests_per_flow": 7,
+  "concurrency": 50,
+  "session_isolation_http_requests": 5,
+  "total_http_requests": 2105,
+  "successful_flows": 300,
+  "failed_flows": 0,
+  "failure_rate": 0.0,
+  "session_isolation_passed": true,
+  "latency_ms": {
+    "mean": 5970.5,
+    "p50": 6109.5,
+    "p95": 9873.6,
+    "max": 9972.9
+  },
+  "status_counts": {
+    "200": 2100
+  },
+  "errors": [],
+  "passed": true
+}

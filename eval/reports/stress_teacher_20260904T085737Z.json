@@ -1,0 +1,74 @@
+{
+  "target": "teacher-concurrent-sessions-reads-and-generation",
+  "generated_at": "2026-09-04T08:57:37.935633+00:00",
+  "read_phase": {
+    "flows": 150,
+    "requests_per_flow": 10,
+    "concurrency": 30,
+    "successful_flows": 150,
+    "failed_flows": 0,
+    "failure_rate": 0.0,
+    "duration_seconds": 9.125,
+    "flow_throughput_per_second": 16.44,
+    "latency_ms": {
+      "mean": 6581.0,
+      "p50": 6620.3,
+      "p95": 9092.0,
+      "max": 9121.0
+    },
+    "errors": []
+  },
+  "generation_phase": {
+    "requests": 6,
+    "concurrency": 3,
+    "successful": 6,
+    "failed": 0,
+    "duration_seconds": 12.595,
+    "requests_per_second": 0.48,
+    "latency_ms": {
+      "mean": 7697.2,
+      "p50": 8192.7,
+      "p95": 12593.1,
+      "max": 12593.1
+    },
+    "statuses": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "setup_statuses": [
+      200,
+      200,
+      200,
+      200
+    ],
+    "titles": [
+      "Teacher concurrency validation draft 1",
+      "Edge-case handling in teacher concurrency validation",
+      "Edge-case handling in teacher concurrency validation",
+      "Edge-case handling: Teacher concurrency validation",
+      "Edge-case handling: Concurrency validation",
+      "Edge-case handling: Teacher concurrency validation"
+    ],
+    "errors": []
+  },
+  "session_isolation": {
+    "passed": true,
+    "statuses": [
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "error": null
+  },
+  "total_http_requests": 1515,
+  "status_counts": {
+    "200": 1515
+  },
+  "passed": true
+}

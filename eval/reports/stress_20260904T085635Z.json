@@ -1,0 +1,44 @@
+{
+  "target": "student-concurrent-login-and-reads",
+  "generated_at": "2026-09-04T08:56:35.773540+00:00",
+  "flows": 300,
+  "requests_per_flow": 7,
+  "concurrency": 50,
+  "session_isolation_http_requests": 5,
+  "total_http_requests": 2096,
+  "successful_flows": 298,
+  "failed_flows": 2,
+  "failure_rate": 0.0067,
+  "session_isolation_passed": true,
+  "latency_ms": {
+    "mean": 6996.8,
+    "p50": 7265.9,
+    "p95": 11681.8,
+    "max": 11752.0
+  },
+  "status_counts": {
+    "200": 2091
+  },
+  "errors": [
+    {
+      "student_code": "s2024001",
+      "duration_ms": 9621.2,
+      "statuses": [
+        200,
+        200,
+        200,
+        200
+      ],
+      "error": "ReadError: "
+    },
+    {
+      "student_code": "s2024002",
+      "duration_ms": 9613.2,
+      "statuses": [
+        200
+      ],
+      "error": "ReadError: "
+    }
+  ],
+  "passed": false
+}
