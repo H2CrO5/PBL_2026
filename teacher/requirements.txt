@@ -1,7 +1,7 @@
 # Web frameworks
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
-streamlit>=1.28.0
+streamlit>=1.62.0
 
 # Database
 sqlalchemy>=1.4.0

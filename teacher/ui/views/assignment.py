@@ -40,15 +40,69 @@ def render():
 
     summary = get("/analytics/dashboard")
     lectures = get("/materials/lectures") or []
-    if not summary or not lectures:
+    if not summary:
         st.info(t("no_course_materials"))
+        return
+
+    with st.expander(t("add_lecture"), expanded=not lectures):
+        with st.form("create_lecture"):
+            next_number = max(
+                (item["lecture_number"] for item in lectures),
+                default=0,
+            ) + 1
+            lecture_number = st.number_input(
+                t("lecture_number"),
+                min_value=1,
+                value=next_number,
+                step=1,
+            )
+            lecture_title = st.text_input(t("lecture_title"))
+            objectives_text = st.text_area(
+                t("learning_objectives"),
+                help=t("learning_objectives_help"),
+            )
+            lecture_submitted = st.form_submit_button(
+                t("save_lecture"),
+                width="stretch",
+            )
+
+        if lecture_submitted:
+            objectives = [
+                line.strip("- ").strip()
+                for line in objectives_text.splitlines()
+                if line.strip("- ").strip()
+            ]
+            if not lecture_title.strip() or not objectives:
+                st.error(t("lecture_required_fields"))
+            else:
+                result = post("/materials/lectures", {
+                    "course_id": summary["course_id"],
+                    "lecture_number": int(lecture_number),
+                    "title": lecture_title.strip(),
+                    "learning_objectives": objectives,
+                })
+                if result:
+                    st.session_state["assignment_lecture_selector"] = t(
+                        "lecture_label",
+                        number=result["lecture_number"],
+                        title=result["title"],
+                    )
+                    st.success(t("lecture_saved"))
+                    st.rerun()
+
+    if not lectures:
+        st.info(t("create_first_lecture"))
         return
 
     lecture_labels = {
         t("lecture_label", number=item["lecture_number"], title=item["title"]): item
         for item in lectures
     }
-    selected_label = st.selectbox(t("lecture"), list(lecture_labels.keys()))
+    selected_label = st.selectbox(
+        t("lecture"),
+        list(lecture_labels.keys()),
+        key="assignment_lecture_selector",
+    )
     selected_lecture = lecture_labels[selected_label]
 
     context = get(f"/questions/generation-context/{selected_lecture['id']}")

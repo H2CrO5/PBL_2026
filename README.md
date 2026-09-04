@@ -46,13 +46,14 @@ Request. `.env` is ignored by Git.
 
 ## Teacher workflow
 
-1. Open **Materials**, upload PDF/PPTX/MD/TXT or select **Sync all materials to Student RAG**.
-2. Open **Question Bank** and generate a grounded Bedrock draft, or add a seed.
-3. Review the question and select **Publish to Student app**.
-4. The student answers it in the Student application.
+1. Open **Assignment Builder** and select an existing lecture, or use **Add Lecture** to create one.
+2. Open **Materials**, upload a PDF/PPTX/MD/TXT file of up to 20 MB, or select **Sync all materials to Student RAG**.
+3. Return to **Assignment Builder** and generate a grounded Bedrock draft, or add a seed.
+4. Review the question and select **Publish to Student app**.
+5. The student answers it in the Student application.
    Multiple questions in the same lecture can be submitted together.
-5. Open **Students** to see the real answer, feedback, error pattern, and score.
-6. If needed, save a grade correction; analytics are recalculated immediately.
+6. Open **Students** to see the real answer, feedback, error pattern, and score.
+7. If needed, save a grade correction; analytics are recalculated immediately.
 
 The Student **Dashboard** shows live score trends, accuracy, weak/strong topics
 and concept mastery evidence. Teacher **Analytics** includes class trends and

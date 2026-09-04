@@ -46,6 +46,13 @@ class CourseMaterialCreateRequest(BaseModel):
     content: str = Field(min_length=1)
 
 
+class LectureCreateRequest(BaseModel):
+    course_id: int
+    lecture_number: int = Field(ge=1)
+    title: str = Field(min_length=1)
+    learning_objectives: list[str] = Field(min_length=1)
+
+
 class LectureResponse(BaseModel):
     id: int
     lecture_number: int

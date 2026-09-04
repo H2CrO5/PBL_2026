@@ -183,8 +183,10 @@ Login request:
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/materials/lectures` | List lectures |
+| `POST` | `/materials/lectures` | Create a lecture for the teacher's course |
 | `GET` | `/materials` | List material records |
 | `POST` | `/materials` | Add local text material for smoke testing |
+| `POST` | `/materials/upload` | Upload and extract a PDF/PPTX/MD/TXT file of up to 20 MB |
 
 Current integration rule:
 

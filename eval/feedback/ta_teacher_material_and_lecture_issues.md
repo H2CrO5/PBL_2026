@@ -109,3 +109,18 @@ A teacher consequently cannot add a new “講義” from Assignment Builder or 
 5. Add an actionable empty state: **No lectures are available. Create a lecture before adding materials or assignments.**
 
 If lecture creation is intentionally outside this application's scope, the UI and documentation should explicitly state that lectures are preconfigured by an administrator.
+
+## Resolution
+
+Both findings were addressed on 2026-09-04:
+
+- The upload widget now enforces and displays the same 20 MB limit as the API.
+- The upload UI now explains the two required steps.
+- Oversized-file API errors include the permitted size.
+- Assignment Builder now provides **Add Lecture / 講義を追加**.
+- Teachers can enter a lecture number, title, and one or more learning objectives.
+- The API verifies course ownership and rejects duplicate lecture numbers.
+- A newly created lecture is automatically selected for assignment creation.
+- The empty state directs teachers to create a lecture first.
+
+Local verification confirmed that lecture creation returned HTTP `200`, the new lecture was selected immediately, and a Markdown upload still synchronized successfully to Student RAG with Bedrock status available. All Teacher unit tests and all four offline eval gates passed.

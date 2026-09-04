@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from config import MAX_MATERIAL_UPLOAD_BYTES
 from ui.api_client import get, post, post_file
 from ui.i18n import t, tv
 
@@ -50,9 +51,12 @@ def render():
                     st.rerun()
 
             st.markdown(f"**{t('upload_course_file')}**")
+            upload_limit_mb = max(1, MAX_MATERIAL_UPLOAD_BYTES // (1024 * 1024))
+            st.caption(t("upload_instructions", size=upload_limit_mb))
             upload = st.file_uploader(
                 t("file_types"),
                 type=["pdf", "pptx", "md", "txt"],
+                max_upload_size=upload_limit_mb,
             )
             upload_title = st.text_input(t("upload_title"))
             if st.button(t("upload_index"), disabled=upload is None, width="stretch"):

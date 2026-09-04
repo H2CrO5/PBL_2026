@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from api.dependencies import get_current_teacher
 from api.schemas.materials import (
+    LectureCreateRequest,
     LectureResponse,
     MaterialCreateRequest,
     MaterialResponse,
@@ -22,6 +23,15 @@ from services import material_storage
 from config import MAX_MATERIAL_UPLOAD_BYTES
 
 router = APIRouter(prefix="/materials", tags=["materials"])
+
+
+def _lecture_response(lecture: Lecture) -> LectureResponse:
+    return LectureResponse(
+        id=lecture.id,
+        lecture_number=lecture.lecture_number,
+        title=lecture.title,
+        learning_objectives=json.loads(lecture.learning_objectives),
+    )
 
 
 def _material_response(material: Material) -> MaterialResponse:
@@ -50,15 +60,49 @@ def get_lectures(
         return []
 
     lectures = db.query(Lecture).filter(Lecture.course_id == course.id).order_by(Lecture.lecture_number).all()
-    return [
-        LectureResponse(
-            id=lecture.id,
-            lecture_number=lecture.lecture_number,
-            title=lecture.title,
-            learning_objectives=json.loads(lecture.learning_objectives),
+    return [_lecture_response(lecture) for lecture in lectures]
+
+
+@router.post("/lectures", response_model=LectureResponse)
+def create_lecture(
+    req: LectureCreateRequest,
+    teacher: Teacher = Depends(get_current_teacher),
+    db: DBSession = Depends(get_db),
+):
+    course = db.query(Course).filter(
+        Course.id == req.course_id,
+        Course.teacher_id == teacher.id,
+    ).first()
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    duplicate = db.query(Lecture).filter(
+        Lecture.course_id == course.id,
+        Lecture.lecture_number == req.lecture_number,
+    ).first()
+    if duplicate is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Lecture {req.lecture_number} already exists",
         )
-        for lecture in lectures
-    ]
+
+    objectives = [item.strip() for item in req.learning_objectives if item.strip()]
+    title = req.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Lecture title is required")
+    if not objectives:
+        raise HTTPException(status_code=422, detail="At least one learning objective is required")
+
+    lecture = Lecture(
+        course_id=course.id,
+        lecture_number=req.lecture_number,
+        title=title,
+        learning_objectives=json.dumps(objectives, ensure_ascii=False),
+    )
+    db.add(lecture)
+    db.commit()
+    db.refresh(lecture)
+    return _lecture_response(lecture)
 
 
 @router.get("", response_model=list[MaterialResponse])
@@ -165,7 +209,11 @@ async def upload_material(
         raise HTTPException(status_code=404, detail="Course or lecture not found")
     raw = await file.read(MAX_MATERIAL_UPLOAD_BYTES + 1)
     if len(raw) > MAX_MATERIAL_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="Material file is too large")
+        limit_mb = MAX_MATERIAL_UPLOAD_BYTES // (1024 * 1024)
+        raise HTTPException(
+            status_code=413,
+            detail=f"Material file is too large (maximum {limit_mb} MB)",
+        )
     try:
         extracted, material_type = _extract_upload(file.filename or "material.txt", raw)
     except HTTPException:
