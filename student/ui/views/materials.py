@@ -1,6 +1,6 @@
-"""Student view for teacher-published course materials."""
+"""Read-only viewer for lecture materials published by the teacher."""
 
-from collections import defaultdict
+from collections import OrderedDict
 
 import httpx
 import streamlit as st
@@ -34,41 +34,49 @@ def render():
     st.title(t("materials_title"))
     st.caption(t("materials_caption"))
 
-    courses = _api_get("/students/me/courses")
-    if courses is None:
+    groups = _api_get("/materials")
+    if groups is None:
         return
-    if not courses:
-        st.info(t("no_active_courses"))
-        return
-
-    course_labels = {
-        f"{course['title']} ({course['term']})": course["external_course_id"]
-        for course in courses
-    }
-    selected_course = st.selectbox(t("course_label"), list(course_labels))
-    external_course_id = course_labels[selected_course]
-    rows = _api_get(f"/materials?external_course_id={external_course_id}")
-    if rows is None:
-        return
-    if not rows:
-        st.info(t("no_published_materials"))
+    if not groups:
+        st.info(t("no_materials"))
         return
 
-    grouped = defaultdict(list)
-    for material in rows:
-        key = (
-            material.get("lecture_number") or 0,
-            material.get("lecture_title") or t("other_materials"),
-        )
-        grouped[key].append(material)
+    by_course = OrderedDict()
+    for group in groups:
+        course_key = group["external_course_id"]
+        by_course.setdefault(
+            course_key,
+            {
+                "title": group["course_title"],
+                "term": group["term"],
+                "lectures": [],
+            },
+        )["lectures"].append(group)
 
-    for (lecture_number, lecture_title), materials in sorted(grouped.items()):
-        heading = (
-            f"{t('lecture_prefix', n=lecture_number)}: {lecture_title}"
-            if lecture_number else lecture_title
-        )
-        st.subheader(heading)
-        for material in materials:
-            with st.expander(f"{material['title']} · {t(material['material_type'])}"):
-                st.markdown(material["content"])
+    for course in by_course.values():
+        st.subheader(course["title"])
+        if course["term"] and course["term"] != "unspecified":
+            st.caption(course["term"])
 
+        for group in course["lectures"]:
+            if group["lecture_number"] is None:
+                lecture_heading = t("general_materials")
+            else:
+                prefix = t("lecture_prefix", n=group["lecture_number"])
+                lecture_heading = f"{prefix} — {group['lecture_title']}"
+            st.markdown(f"### {lecture_heading}")
+
+            for material in group["materials"]:
+                type_key = f"material_type_{material['material_type']}"
+                type_label = t(type_key)
+                if type_label == type_key:
+                    type_label = material["material_type"].upper()
+                with st.expander(f"{material['title']} · {type_label}"):
+                    st.markdown(material["content"])
+                    st.download_button(
+                        t("download_material_text"),
+                        data=material["content"],
+                        file_name=f"material-{material['id']}.txt",
+                        mime="text/plain",
+                        key=f"material_download_{material['id']}",
+                    )

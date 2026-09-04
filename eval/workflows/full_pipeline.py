@@ -16,6 +16,10 @@ def _checked(response: httpx.Response, step: str) -> dict | list:
     return response.json()
 
 
+def _flatten_material_groups(groups: list[dict]) -> list[dict]:
+    return [material for group in groups for material in group.get("materials", [])]
+
+
 def run_full_pipeline(
     teacher_url: str,
     student_url: str,
@@ -106,10 +110,11 @@ def run_full_pipeline(
                 headers=student_headers,
                 params={"external_course_id": course_external_id},
             ), "student material list after publish")
+            visible_material_rows = _flatten_material_groups(visible_materials)
             checks["material_visible_to_student"] = any(
                 item["external_material_id"] == material["external_key"]
                 and "Grounded answers" in item["content"]
-                for item in visible_materials
+                for item in visible_material_rows
             )
 
             _checked(client.patch(
@@ -122,9 +127,10 @@ def run_full_pipeline(
                 headers=student_headers,
                 params={"external_course_id": course_external_id},
             ), "student material list after hide")
+            hidden_material_rows = _flatten_material_groups(hidden_materials)
             checks["material_hidden_from_student"] = all(
                 item["external_material_id"] != material["external_key"]
-                for item in hidden_materials
+                for item in hidden_material_rows
             )
 
             _checked(client.patch(
@@ -137,9 +143,12 @@ def run_full_pipeline(
                 headers=student_headers,
                 params={"external_course_id": course_external_id},
             ), "student material list after republish")
+            republished_material_rows = _flatten_material_groups(
+                republished_materials
+            )
             checks["material_republished_to_student"] = any(
                 item["external_material_id"] == material["external_key"]
-                for item in republished_materials
+                for item in republished_material_rows
             )
 
             generated = _checked(client.post(

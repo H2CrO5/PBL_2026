@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.routers.assignments import submit_answer
-from api.routers.materials import list_student_materials
+from api.routers.materials import get_student_materials
 from api.schemas.assignments import SubmitRequest
 from db.models import (
     Assignment,
@@ -145,10 +145,11 @@ class ProgressAndMaterialsTest(unittest.TestCase):
         ])
         self.db.commit()
 
-        result = list_student_materials(None, self.student, self.db)
+        result = get_student_materials(None, self.student, self.db)
 
-        self.assertEqual([item.title for item in result], ["Visible"])
+        self.assertEqual(len(result), 1)
         self.assertEqual(result[0].lecture_title, "Progress")
+        self.assertEqual([item.title for item in result[0].materials], ["Visible"])
 
     def test_student_rag_excludes_private_teacher_materials(self):
         visible = CourseMaterial(
