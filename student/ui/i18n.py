@@ -7,6 +7,7 @@ TRANSLATIONS = {
     "role_label": {"ja": "Student", "en": "Student"},
     "navigation": {"ja": "ナビゲーション", "en": "Navigation"},
     "page_dashboard": {"ja": "ダッシュボード", "en": "Dashboard"},
+    "page_materials": {"ja": "教材", "en": "Materials"},
     "page_assignments": {"ja": "課題", "en": "Assignments"},
     "page_ta_bot": {"ja": "TA Bot", "en": "TA Bot"},
     "logout": {"ja": "ログアウト", "en": "Logout"},
@@ -22,6 +23,16 @@ TRANSLATIONS = {
     "login_connect_error": {"ja": "APIサーバーに接続できません。サーバーが起動しているか確認してください。", "en": "Cannot connect to the API server. Please check if the server is running."},
     "login_error": {"ja": "エラーが発生しました", "en": "An error occurred"},
     "demo_accounts": {"ja": "デモアカウント", "en": "Demo Accounts"},
+
+    # ── Materials ─────────────────────────────────────────
+    "materials_title": {"ja": "講義教材", "en": "Lecture Materials"},
+    "materials_caption": {"ja": "受講中の講義で使用する教材を閲覧できます。", "en": "View materials for your enrolled courses."},
+    "no_materials": {"ja": "現在、閲覧できる教材はありません。", "en": "No materials are currently available."},
+    "general_materials": {"ja": "共通教材", "en": "General Materials"},
+    "download_material_text": {"ja": "テキストをダウンロード", "en": "Download text"},
+    "material_type_note": {"ja": "ノート", "en": "Note"},
+    "material_type_book": {"ja": "PDF教材", "en": "PDF material"},
+    "material_type_slide": {"ja": "スライド", "en": "Slides"},
 
     # ── Assignments ───────────────────────────────────────
     "assignments_title": {"ja": "課題", "en": "Assignments"},

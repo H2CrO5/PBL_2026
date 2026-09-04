@@ -30,12 +30,12 @@ a { color: var(--classpilot-teal) !important; }
 
 from ui import i18n
 from ui.components import sidebar
-from ui.views import assignment, dashboard, login, ta_chat
+from ui.views import assignment, dashboard, login, materials, ta_chat
 
 # Streamlit keeps imported modules in memory between reruns. Reload view modules
 # so UI-only edits are reflected immediately during local development.
 reload(i18n)
-for _view_module in (sidebar, assignment, dashboard, login, ta_chat):
+for _view_module in (sidebar, assignment, dashboard, login, materials, ta_chat):
     reload(_view_module)
 
 # Initialize session state
@@ -84,5 +84,7 @@ elif page == "dashboard":
     dashboard.render()
 elif page == "assignments":
     assignment.render()
+elif page == "materials":
+    materials.render()
 elif page == "ta_bot":
     ta_chat.render()

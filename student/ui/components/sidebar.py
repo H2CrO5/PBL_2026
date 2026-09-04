@@ -24,9 +24,10 @@ def render_sidebar():
             st.caption(student.get("student_code", ""))
             st.divider()
 
-            page_keys = ["dashboard", "assignments", "ta_bot"]
+            page_keys = ["dashboard", "materials", "assignments", "ta_bot"]
             label_keys = {
                 "dashboard": "page_dashboard",
+                "materials": "page_materials",
                 "assignments": "page_assignments",
                 "ta_bot": "page_ta_bot",
             }
