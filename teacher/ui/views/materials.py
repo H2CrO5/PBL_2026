@@ -59,6 +59,14 @@ def render():
             st.markdown(f"**{t('upload_course_file')}**")
             upload_limit_mb = max(1, MAX_MATERIAL_UPLOAD_BYTES // (1024 * 1024))
             st.caption(t("upload_instructions", size=upload_limit_mb))
+            # The lecture selectbox above belongs to the "add_material" form, so its
+            # value only reaches the script when that form is submitted. The upload
+            # button is a plain button, so it needs its own lecture selector.
+            upload_lecture = st.selectbox(
+                t("lecture"),
+                list(lecture_labels.keys()),
+                key="upload_lecture_selector",
+            )
             upload = st.file_uploader(
                 t("file_types"),
                 type=["pdf", "pptx", "md", "txt"],
@@ -82,7 +90,7 @@ def render():
                             upload.getvalue(),
                             {
                                 "course_id": str(summary["course_id"]),
-                                "lecture_id": str(lecture_labels[selected]),
+                                "lecture_id": str(lecture_labels[upload_lecture]),
                                 "title": upload_title,
                                 "audience": (
                                     "student"
@@ -116,7 +124,9 @@ def render():
             col2.code(tv(material["material_type"]))
             col3.info(tv(material["audience"]))
             col4.success(tv(material["ingestion_status"]))
-            st.caption(material["content_preview"])
+            # Plain text: previews start with Markdown headings, which st.caption
+            # would otherwise render as large titles.
+            st.text(material["content_preview"])
             if material.get("sync_error"):
                 st.error(t("sync_error_detail", detail=material["sync_error"]))
             target_audience = (

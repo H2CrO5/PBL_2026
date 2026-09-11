@@ -142,12 +142,27 @@ def render():
             format_func=tv,
             key=f"generation_difficulty_{selected_lecture['id']}",
         )
-        generation_count = st.number_input(
+        count_col, points_col, attempts_col = st.columns(3)
+        generation_count = count_col.number_input(
             t("number_questions"),
             min_value=1,
             max_value=5,
             value=1,
             key=f"generation_count_{selected_lecture['id']}",
+        )
+        generation_points = points_col.number_input(
+            t("points"),
+            min_value=1,
+            max_value=1000,
+            value=100,
+            key=f"generation_points_{selected_lecture['id']}",
+        )
+        generation_max_attempts = attempts_col.number_input(
+            t("max_attempts"),
+            min_value=1,
+            max_value=10,
+            value=1,
+            key=f"generation_max_attempts_{selected_lecture['id']}",
         )
         generation_targets = st.multiselect(
             t("target_students"),
@@ -168,8 +183,8 @@ def render():
                     "assignment_goal": generation_goal,
                     "target_student_codes": [student_labels[label] for label in generation_targets],
                     "difficulty": generation_difficulty,
-                    "points": 100,
-                    "max_attempts": 1,
+                    "points": int(generation_points),
+                    "max_attempts": int(generation_max_attempts),
                     "number_questions": int(generation_count),
                 },
                 timeout=600.0,
