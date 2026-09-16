@@ -60,6 +60,12 @@ def _qtype_label(key: str) -> str:
     return t(key) if key in ("multiple_choice", "short_answer", "code") else key
 
 
+def _history_widget_key(prefix: str, item: dict, position: int) -> str:
+    """Return a stable key that remains unique across assignment retries."""
+    attempt = item.get("attempt_number", "legacy")
+    return f"{prefix}_{item['id']}_{attempt}_{position}"
+
+
 def render():
     """Render the assignment page."""
     st.title(t("assignments_title"))
@@ -304,7 +310,7 @@ def _render_history():
             f"{lec_prefix}: {title} — {correct_count}/{len(submissions)} {t('correct_suffix')}",
             expanded=False,
         ):
-            for item in submissions:
+            for position, item in enumerate(submissions):
                 diff = _diff_label(item["difficulty"])
                 icon = "✅" if item["is_correct"] else "❌"
 
@@ -317,7 +323,11 @@ def _render_history():
                         )
                         st.caption(item["question_text"][:80] + ("..." if len(item["question_text"]) > 80 else ""))
                     with col_btn:
-                        if st.button(t("ask_ta_bot"), key=f"tachat_{item['id']}", use_container_width=True):
+                        if st.button(
+                            t("ask_ta_bot"),
+                            key=_history_widget_key("tachat", item, position),
+                            use_container_width=True,
+                        ):
                             st.session_state.history_chat_assignment = item
                             st.session_state.pop("assignment_chat_messages", None)
                             st.rerun()

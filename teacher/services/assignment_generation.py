@@ -1,6 +1,8 @@
 """Bedrock-backed draft generation grounded in teacher course materials."""
 
 import json
+import re
+from typing import Any
 
 from llm import bedrock_client
 
@@ -41,6 +43,78 @@ Try once more. Return only syntactically valid JSON. In particular,
 expected_answer must be one string and every rubric item must be one string.
 """
 
+_RUBRIC_PREFIX = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s*")
+
+
+def _plain_text(value: Any, field_name: str) -> str:
+    """Convert predictable Bedrock text structures into readable plain text."""
+    if isinstance(value, str):
+        text = value.strip()
+    elif isinstance(value, list):
+        text = "\n".join(_plain_text(item, field_name) for item in value)
+    elif isinstance(value, dict):
+        text = "\n".join(
+            f"{key}: {_plain_text(item, field_name)}"
+            for key, item in value.items()
+        )
+    else:
+        raise ValueError(f"Bedrock assignment {field_name} must contain text")
+    if not text.strip():
+        raise ValueError(f"Bedrock assignment {field_name} must not be empty")
+    return text.strip()
+
+
+def _rubric_items(value: Any) -> list[str]:
+    """Normalize a rubric returned as a list, multiline string, or object."""
+    if isinstance(value, str):
+        candidates = value.splitlines()
+    elif isinstance(value, list):
+        candidates = [_plain_text(item, "rubric") for item in value]
+    elif isinstance(value, dict):
+        candidates = [
+            f"{key}: {_plain_text(item, 'rubric')}"
+            for key, item in value.items()
+        ]
+    else:
+        raise ValueError("Bedrock assignment rubric must contain text items")
+    items = [
+        _RUBRIC_PREFIX.sub("", item).strip()
+        for item in candidates
+        if item.strip()
+    ]
+    if not items:
+        raise ValueError("Bedrock assignment rubric must not be empty")
+    return items
+
+
+def _source_titles(value: Any) -> list[str]:
+    """Normalize an optional source title or list of source titles."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ValueError("Bedrock assignment source_titles must contain strings")
+    return [item.strip() for item in value if item.strip()]
+
+
+def _normalize_draft(result: Any) -> dict:
+    """Validate required fields and repair common, unambiguous schema drift."""
+    if not isinstance(result, dict):
+        raise ValueError("Bedrock assignment draft must be an object")
+    draft = dict(result)
+    for key in ("title", "question_text"):
+        if not isinstance(draft.get(key), str) or not draft[key].strip():
+            raise ValueError(f"Bedrock assignment {key} must be a string")
+        draft[key] = draft[key].strip()
+    draft["expected_answer"] = _plain_text(
+        draft.get("expected_answer"),
+        "expected_answer",
+    )
+    draft["rubric"] = _rubric_items(draft.get("rubric"))
+    draft["source_titles"] = _source_titles(draft.get("source_titles"))
+    return draft
+
 
 def generate_draft(
     target_concept: str,
@@ -73,25 +147,7 @@ def generate_draft(
                 max_tokens=2048,
                 temperature=0.2 if attempt == 0 else 0.0,
             )
-            if not isinstance(result, dict):
-                raise ValueError("Bedrock assignment draft must be an object")
-            for key in ("title", "question_text", "expected_answer"):
-                if not isinstance(result.get(key), str) or not result[key].strip():
-                    raise ValueError(f"Bedrock assignment {key} must be a string")
-            rubric = result.get("rubric")
-            if (
-                not isinstance(rubric, list)
-                or not rubric
-                or any(not isinstance(item, str) or not item.strip() for item in rubric)
-            ):
-                raise ValueError("Bedrock assignment rubric must be a list of strings")
-            sources = result.get("source_titles", [])
-            if not isinstance(sources, list) or any(
-                not isinstance(item, str) for item in sources
-            ):
-                raise ValueError("Bedrock assignment source_titles must be a list of strings")
-            result["source_titles"] = sources
-            return result
+            return _normalize_draft(result)
         except ValueError as exc:
             last_error = exc
     raise ValueError("Bedrock returned invalid assignment JSON after one retry") from last_error
