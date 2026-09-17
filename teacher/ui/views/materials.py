@@ -3,7 +3,7 @@
 import streamlit as st
 
 from config import MAX_MATERIAL_UPLOAD_BYTES
-from ui.api_client import get, post, post_file
+from ui.api_client import delete, get, post, post_file
 from ui.i18n import t, tv
 
 
@@ -164,3 +164,15 @@ def render():
                         t("indexed", chunks=result["chunk_count"], status=tv(result["ingestion_status"]))
                     )
                     st.rerun()
+            with st.popover(t("delete_material"), width="stretch"):
+                st.warning(t("delete_material_warning", title=material["title"]))
+                if st.button(
+                    t("confirm_delete_material"),
+                    key=f"delete_material_{material['id']}",
+                    type="primary",
+                    width="stretch",
+                ):
+                    result = delete(f"/materials/{material['id']}")
+                    if result:
+                        st.success(t("material_deleted"))
+                        st.rerun()

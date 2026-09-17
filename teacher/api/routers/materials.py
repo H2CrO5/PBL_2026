@@ -446,3 +446,49 @@ def sync_material(
         ingestion_status=material.ingestion_status,
         chunk_count=result["chunk_count"],
     )
+
+
+@router.delete("/{material_id}")
+def delete_material(
+    material_id: int,
+    teacher: Teacher = Depends(get_current_teacher),
+    db: DBSession = Depends(get_db),
+):
+    """Delete a material locally and remove its Student/RAG copy first."""
+    material = (
+        db.query(Material)
+        .join(Course, Material.course_id == Course.id)
+        .filter(Material.id == material_id, Course.teacher_id == teacher.id)
+        .first()
+    )
+    if material is None:
+        raise HTTPException(status_code=404, detail="Material not found")
+
+    if student_data.integration_enabled():
+        payload = _sync_payload(material)
+        payload["audience"] = "teacher"
+        try:
+            student_data.sync_material(payload)
+        except student_data.StudentDataUnavailable as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Student/RAG copy could not be removed: {exc}",
+            ) from exc
+    elif material.audience == "student":
+        raise HTTPException(
+            status_code=503,
+            detail="Student integration is not configured; the public copy cannot be removed safely",
+        )
+
+    try:
+        material_storage.delete_original(material.source_path)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Original file storage could not be cleaned up; the material was not deleted",
+        ) from exc
+
+    title = material.title
+    db.delete(material)
+    db.commit()
+    return {"message": "Material deleted", "id": material_id, "title": title}

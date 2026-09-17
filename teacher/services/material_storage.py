@@ -20,3 +20,21 @@ def store_original(filename: str, content: bytes, course_key: str) -> str:
         Body=content,
     )
     return f"s3://{config.MATERIALS_S3_BUCKET}/{key}"
+
+
+def delete_original(source_path: str | None) -> None:
+    """Delete an uploaded original from S3 when the material uses S3 storage."""
+    if not source_path or not source_path.startswith("s3://"):
+        return
+
+    location = source_path[len("s3://"):]
+    bucket, separator, key = location.partition("/")
+    if not separator or not bucket or not key:
+        raise ValueError("Invalid S3 material source path")
+
+    import boto3
+
+    boto3.client("s3", region_name=config.AWS_REGION).delete_object(
+        Bucket=bucket,
+        Key=key,
+    )

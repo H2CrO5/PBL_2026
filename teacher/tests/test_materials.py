@@ -19,6 +19,7 @@ from api.routers.materials import (
     _sync_payload,
     create_lecture,
     create_material,
+    delete_material,
     update_material_audience,
     upload_material,
 )
@@ -298,6 +299,65 @@ class LectureManagementTest(unittest.TestCase):
 
         self.assertEqual(result.audience, "student")
         self.assertEqual(result.ingestion_status, "local_only")
+
+    @patch("api.routers.materials.material_storage.delete_original")
+    @patch("api.routers.materials.student_data.sync_material")
+    @patch("api.routers.materials.student_data.integration_enabled", return_value=True)
+    def test_delete_removes_student_copy_and_local_material(
+        self,
+        _integration_enabled,
+        sync_material,
+        delete_original,
+    ):
+        lecture = self._lecture()
+        material = Material(
+            external_key="course-test:material-public",
+            course_id=self.course.id,
+            lecture_id=lecture.id,
+            title="Public slides",
+            material_type="slide",
+            audience="student",
+            source_path="s3://materials/course/slides.pdf",
+            content="Student-facing content",
+        )
+        self.session.add(material)
+        self.session.commit()
+        material_id = material.id
+
+        result = delete_material(material_id, self.teacher, self.session)
+
+        self.assertEqual(result["id"], material_id)
+        self.assertIsNone(self.session.get(Material, material_id))
+        self.assertEqual(sync_material.call_args.args[0]["audience"], "teacher")
+        delete_original.assert_called_once_with("s3://materials/course/slides.pdf")
+
+    @patch("api.routers.materials.student_data.sync_material")
+    @patch("api.routers.materials.student_data.integration_enabled", return_value=True)
+    def test_delete_keeps_material_when_student_cleanup_fails(
+        self,
+        _integration_enabled,
+        sync_material,
+    ):
+        sync_material.side_effect = StudentDataUnavailable("temporary outage")
+        lecture = self._lecture()
+        material = Material(
+            external_key="course-test:material-public",
+            course_id=self.course.id,
+            lecture_id=lecture.id,
+            title="Public slides",
+            material_type="slide",
+            audience="student",
+            content="Student-facing content",
+        )
+        self.session.add(material)
+        self.session.commit()
+        material_id = material.id
+
+        with self.assertRaises(HTTPException) as raised:
+            delete_material(material_id, self.teacher, self.session)
+
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertIsNotNone(self.session.get(Material, material_id))
 
 
 if __name__ == "__main__":

@@ -117,6 +117,13 @@ TRANSLATIONS = {
     "make_teacher_only": {"en": "Change to Teacher only", "ja": "教員のみに変更"},
     "make_student_visible": {"en": "Publish to Student", "ja": "Studentに公開"},
     "indexed": {"en": "Indexed {chunks} chunk(s): {status}", "ja": "{chunks}チャンクを索引化しました: {status}"},
+    "delete_material": {"en": "Delete material", "ja": "教材を削除"},
+    "delete_material_warning": {
+        "en": "Delete '{title}' permanently? It will also be removed from the Student screen and Student RAG.",
+        "ja": "「{title}」を完全に削除しますか？Student画面とStudent RAGからも削除されます。",
+    },
+    "confirm_delete_material": {"en": "Delete permanently", "ja": "完全に削除する"},
+    "material_deleted": {"en": "Material deleted.", "ja": "教材を削除しました。"},
     "no_course_materials": {"en": "No course materials available.", "ja": "利用できるコース教材がありません。"},
     "materials_count": {"en": "Materials", "ja": "教材数"},
     "lecture_seeds": {"en": "Saved Questions", "ja": "登録済み問題数"},
