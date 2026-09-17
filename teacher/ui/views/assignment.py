@@ -183,6 +183,7 @@ def render():
         if st.button(
             t("generate_bedrock"),
             disabled=not bool(generation_material_labels),
+            type="primary",
             width="stretch",
         ):
             result = post(
