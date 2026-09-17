@@ -244,7 +244,20 @@ def generate_question_draft(
             status_code=503,
             detail="Set TEACHER_USE_LLM=1 to enable Bedrock draft generation",
         )
-    materials = db.query(Material).filter(Material.lecture_id == lecture.id).all()
+    materials_query = db.query(Material).filter(Material.lecture_id == lecture.id)
+    if req.material_ids:
+        materials_query = materials_query.filter(Material.id.in_(req.material_ids))
+    materials = materials_query.all()
+    if req.material_ids and len(materials) != len(set(req.material_ids)):
+        raise HTTPException(
+            status_code=422,
+            detail="One or more selected materials do not belong to this lecture",
+        )
+    if not materials:
+        raise HTTPException(
+            status_code=422,
+            detail="Select at least one material from this lecture",
+        )
     concept = req.target_concept
     if not concept:
         metric = db.query(ConceptMetric).filter(
@@ -273,7 +286,12 @@ def generate_question_draft(
                 req.assignment_goal,
                 *json.loads(lecture.learning_objectives),
             ])
-            chunks = student_data.retrieve_rag(course.external_key, query, top_k=6)
+            chunks = student_data.retrieve_rag(
+                course.external_key,
+                query,
+                top_k=6,
+                external_material_ids=[item.external_key for item in materials],
+            )
             generation_materials = [
                 {
                     "title": f"{item['source']} / {item.get('source_locator') or 'chunk'}",

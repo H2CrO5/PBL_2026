@@ -74,6 +74,7 @@ class RagRetrieveRequest(BaseModel):
     external_course_id: str = Field(min_length=1)
     query: str = Field(min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
+    external_material_ids: list[str] = Field(default_factory=list)
 
 
 class RagChunkResponse(BaseModel):

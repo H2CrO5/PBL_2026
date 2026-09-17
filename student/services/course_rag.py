@@ -80,6 +80,7 @@ def retrieve_course(
     query: str,
     top_k: int = 3,
     visible_only: bool = False,
+    external_material_ids: list[str] | None = None,
 ) -> list[dict]:
     chunks_query = (
         db.query(MaterialChunk)
@@ -89,6 +90,10 @@ def retrieve_course(
             CourseMaterial.audience == "student",
         )
     )
+    if external_material_ids:
+        chunks_query = chunks_query.filter(
+            CourseMaterial.external_key.in_(external_material_ids)
+        )
     chunks = chunks_query.all()
     if not chunks:
         return []

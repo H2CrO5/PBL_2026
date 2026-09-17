@@ -164,6 +164,16 @@ def render():
             value=1,
             key=f"generation_max_attempts_{selected_lecture['id']}",
         )
+        material_labels = {
+            f"#{item['id']} {item['title']}": item["id"]
+            for item in context["materials"]
+        }
+        generation_material_labels = st.multiselect(
+            t("materials"),
+            list(material_labels),
+            default=list(material_labels),
+            key=f"generation_materials_{selected_lecture['id']}",
+        )
         generation_targets = st.multiselect(
             t("target_students"),
             list(student_labels),
@@ -171,7 +181,7 @@ def render():
         )
         if st.button(
             t("generate_bedrock"),
-            disabled=not bool(context["materials"]),
+            disabled=not bool(generation_material_labels),
             width="stretch",
         ):
             result = post(
@@ -179,6 +189,9 @@ def render():
                 {
                     "course_id": summary["course_id"],
                     "lecture_id": selected_lecture["id"],
+                    "material_ids": [
+                        material_labels[label] for label in generation_material_labels
+                    ],
                     "target_concept": generation_concept,
                     "assignment_goal": generation_goal,
                     "target_student_codes": [student_labels[label] for label in generation_targets],

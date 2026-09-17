@@ -323,7 +323,13 @@ def retrieve_rag_context(req: RagRetrieveRequest, db: DBSession = Depends(get_db
         raise HTTPException(status_code=404, detail="Course not found")
     return RagRetrieveResponse(
         external_course_id=course.external_key,
-        chunks=retrieve_course(db, course.id, req.query, top_k=req.top_k),
+        chunks=retrieve_course(
+            db,
+            course.id,
+            req.query,
+            top_k=req.top_k,
+            external_material_ids=req.external_material_ids,
+        ),
     )
 
 

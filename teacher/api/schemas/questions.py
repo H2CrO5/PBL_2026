@@ -110,6 +110,7 @@ class AssignmentBatchPublishResponse(BaseModel):
 class QuestionGenerateRequest(BaseModel):
     course_id: int
     lecture_id: int
+    material_ids: list[int] = Field(default_factory=list)
     target_concept: str | None = None
     assignment_goal: str = "Check conceptual understanding using course evidence"
     target_student_codes: list[str] = Field(default_factory=list)

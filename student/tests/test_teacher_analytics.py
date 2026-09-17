@@ -289,6 +289,44 @@ class TeacherAnalyticsFeedTest(unittest.TestCase):
         self.assertTrue(retrieved.chunks)
         self.assertEqual(retrieved.chunks[0].source, "Grounding notes")
 
+    def test_rag_retrieval_can_be_scoped_to_selected_materials(self):
+        selected = MaterialSyncRequest(
+            external_material_id="mat-selected",
+            external_course_id="course-1",
+            course_title="Course One",
+            lecture_external_id="lecture-1",
+            lecture_number=1,
+            lecture_title="Introduction",
+            title="Selected PDF",
+            material_type="reference",
+            audience="student",
+            content="ClassPilot supports evidence-grounded feedback. " * 20,
+        )
+        old_sample = selected.model_copy(update={
+            "external_material_id": "mat-old-sample",
+            "title": "Old sample",
+            "content": "Binary trees and hash tables are data structures. " * 20,
+        })
+        with patch("services.course_rag.BEDROCK_BEARER_TOKEN", ""):
+            sync_material(selected, self.db)
+            sync_material(old_sample, self.db)
+
+        retrieved = retrieve_rag_context(
+            RagRetrieveRequest(
+                external_course_id="course-1",
+                query="data structures",
+                top_k=10,
+                external_material_ids=["mat-selected"],
+            ),
+            self.db,
+        )
+
+        self.assertTrue(retrieved.chunks)
+        self.assertEqual(
+            {chunk.source for chunk in retrieved.chunks},
+            {"Selected PDF"},
+        )
+
     def test_teacher_only_material_is_removed_from_student_and_rag(self):
         public_request = MaterialSyncRequest(
             external_material_id="mat-private",

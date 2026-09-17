@@ -101,7 +101,12 @@ def sync_material(payload: dict) -> dict:
     )
 
 
-def retrieve_rag(external_course_id: str, query: str, top_k: int = 5) -> list[dict]:
+def retrieve_rag(
+    external_course_id: str,
+    query: str,
+    top_k: int = 5,
+    external_material_ids: list[str] | None = None,
+) -> list[dict]:
     result = _request(
         "POST",
         "/integrations/teacher/rag/retrieve",
@@ -109,6 +114,7 @@ def retrieve_rag(external_course_id: str, query: str, top_k: int = 5) -> list[di
             "external_course_id": external_course_id,
             "query": query,
             "top_k": top_k,
+            "external_material_ids": external_material_ids or [],
         },
         timeout=config.STUDENT_RAG_TIMEOUT,
     )
