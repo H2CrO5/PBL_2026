@@ -125,6 +125,7 @@ def render():
                 st.markdown(f"**{localize_text(check['name'])}**")
                 st.caption(tv(check["status"]))
                 st.markdown(localize_text(check["detail"]))
+        st.subheader(t("rag_assignment_generation"))
         generation_concept = st.text_input(
             t("target_concept"),
             value=context["weak_concepts"][0] if context["weak_concepts"] else selected_lecture["title"],
@@ -207,7 +208,7 @@ def render():
                 st.rerun()
 
     with st.form("create_question_seed"):
-        st.subheader(t("add_seed"))
+        st.subheader(t("manual_question_addition"))
         title = st.text_input(
             t("title"), value=t("checkpoint_title", lecture=selected_lecture["title"])
         )
